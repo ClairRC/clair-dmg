@@ -10,6 +10,7 @@
 //TODO: Add T-Cycle and M-Cycle implementation
 CPU* cpu_init() {
     RegisterFile rf = {0};
+    //Registers initialized as garbage values. This mimics real hardware behavior
     CPU* cpu = (CPU*)malloc(sizeof(CPU));
 
     //If memory isn't allocated, return an error
