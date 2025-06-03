@@ -33,9 +33,3 @@ typedef enum {
     HALFCARRY,
     CARRY
 } Flags;
-
-//Operand type enum to help decode instructions easier
-typedef enum {
-    OPERAND_REG8,
-    OPERAND_REG16
-} OperandType;
