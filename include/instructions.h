@@ -2,6 +2,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+//Macros to help with writing instructions
+#define UNSIGNED_16(lsb, msb) (((uint16_t)msb<<8) | (uint16_t)lsb) //Combines 2 bytes
+#define GET_LSB(val) ((uint8_t)val) //Truncates upper byte, leaving lsb
+#define GET_MSB(val) ((uint8_t) (val>>8)) //Shifts bits over and truncates upper bits, leaving msb
+
 /*
 * Because there are so many opcodes, I've tried my best to only include
 * a few function per type. There will still be a lot of functions, but because
