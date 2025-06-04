@@ -39,6 +39,7 @@ int ld_mem_r16(CPU*, Instruction*); //[16-bit address]|16-bit register
 int ld_r8_r16mem(CPU*, Instruction*); //8-bit register|[16-bit register]
 int ld_r8_r8(CPU*, Instruction*); //8-bit register|8-bit register
 int ld_r8_mem(CPU*, Instruction*); //8-bit register|[16-bit address]
+int ld_mem_r8(CPU*, Instruction*);
 
 int ld_r16_r16(CPU*, Instruction*); //16-bit register|16-bit register
 int ld_r16_imm8s(CPU*, Instruction*); //16-bit register|SP + 8-bit signed immediate
@@ -118,6 +119,7 @@ int rst_imm16(CPU*, Instruction*); //Jump to hard coded addresses
 int jp_imm16(CPU*, Instruction*); //Unconditional jump to address
 int jp_flag_imm16(CPU*, Instruction*); //Jump if flag is set
 int jp_notflag_imm16(CPU*, Instruction*); //Jump if flag is not set
+int jp_hl(CPU*, Instruction*); //Outlier that jumps to the address stored in HL
 
 //Relative Jump
 int jr_imm8s(CPU*, Instruction*); //Unconditionaly
