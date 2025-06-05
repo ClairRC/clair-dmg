@@ -1,4 +1,3 @@
-#include "cpu.h"
 #include "instructions.h"
 
 //Loads 16-bit immediate from memory into 16-bit register

@@ -255,6 +255,18 @@ int clearFlag(CPU* cpu, Flags flag) {
     return 0;
 }
 
+//Updates flag based on boolean input
+int updateFlag(CPU* cpu, Flags flag, int status) {
+    //Expression is FALSE -- Clear flag
+    if (status == 0)
+        clearFlag(cpu, flag);
+    //Expression is TRUE -- Set flag
+    else
+        setFlag(cpu, flag);
+
+    return 0;
+}
+
 //Returns whether a flag is set or not. 1 for set, 0 for clear
 int flagIsSet(CPU* cpu, Flags flag) {
     //Gets flag value itself

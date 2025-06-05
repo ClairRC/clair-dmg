@@ -30,12 +30,13 @@ typedef struct {
 } CPU;
 
 CPU* cpu_init(void);
-void cpu_destroy(CPU* cpu);
-uint16_t getRegisterValue16(CPU* cpu, Registers reg);
-uint8_t getRegisterValue8(CPU* cpu, Registers reg);
-int setRegisterValue(CPU* cpu, Registers reg, uint16_t value);
-int setFlag(CPU* cpu, Flags flag);
-int clearFlag(CPU* cpu, Flags flag);
-int flagIsSet(CPU* cpu, Flags flag);
+void cpu_destroy(CPU*);
+uint16_t getRegisterValue16(CPU*, Registers);
+uint8_t getRegisterValue8(CPU*, Registers);
+int setRegisterValue(CPU*, Registers, uint16_t);
+int setFlag(CPU*, Flags);
+int clearFlag(CPU*, Flags);
+int updateFlag(CPU*, Flags, int);
+int flagIsSet(CPU*, Flags);
 
 #endif

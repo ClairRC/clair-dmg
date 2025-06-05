@@ -3,15 +3,29 @@
 #include <stdlib.h>
 
 //Macros to help with writing instructions
-#define UNSIGNED_16(lsb, msb) (((uint16_t)msb<<8) | (uint16_t)lsb) //Combines 2 bytes
-#define GET_LSB(val) ((uint8_t)val) //Truncates upper byte, leaving lsb
-#define GET_MSB(val) ((uint8_t) (val>>8)) //Shifts bits over and truncates upper bits, leaving msb
+#define UNSIGNED_16(lsb, msb) (((uint16_t)(msb)<<8) | (uint16_t)(lsb)) //Combines 2 bytes
+#define GET_LSB(val) ((uint8_t)(val)) //Truncates upper byte, leaving lsb
+#define GET_MSB(val) ((uint8_t) ((val)>>8)) //Shifts bits over and truncates upper bits, leaving msb
+
+//Checks flags.
+#define CHECK_ZERO_8(val) ((uint8_t)(val) == 0)
+#define CHECK_ZERO_16(val) ((uint16_t)(val) == 0)
+#define CHECK_CARRY_8BIT_ADD(val_16) ((val_16) > 0xFF)
+#define CHECK_CARRY_16BIT_ADD(val_32) ((val_32) > 0xFFFF)
+#define CHECK_HALF_CARRY_8BIT_ADD(val1_8, val2_8) (((val1_8) & 0xF) + ((val2_8) & 0xF) > 0xF)
+#define CHECK_HALF_CARRY_16BIT_ADD(val1_16, val2_16) (((val1_16) & 0xFFF) + ((val2_16) & 0xFFF) > 0xFFF)
+#define CHECK_HALF_CARRY_8BIT_ADD_W_CARRY(val1_8, val2_8, carryBit)\
+    (((val1_8) & 0xF) + ((val2_8) & 0xF) + carryBit > 0xF)
+#define CHECK_CARRY_8BIT_SUB(val1_8, val2_8) ((val1_8) < (val2_8))
+#define CHECK_CARRY_8BIT_SUB_W_CARRY(val1_8, val2_8, carryBit) ((val1_8) < ((uint16_t)(val2_8) + carryBit))
+#define CHECK_HALF_CARRY_8BIT_SUB(val1_8, val2_8) (((val1_8) & 0xF) < ((val2_8) & 0xF))
+#define CHECK_HALF_CARRY_8BIT_SUB_W_CARRY(val1_8, val2_8, carryBit) ((val1_8 & 0xF) < (((val2_8) & 0xF) + carryBit))
 
 /*
 * Because there are so many opcodes, I've tried my best to only include
 * a few function per type. There will still be a lot of functions, but because
 * of different operand types, I've still had to include a lot.
-* I was struggling between "include functions that are as specific as possible" and
+* I was struggling between "include functions at are as specific as possible" and
 * "make my code clean and readable", and so ultimately I decided I will have a different
 * function for different operand types, including for special cases. So there's a lot,
 * but not as many as there are opcodes.
@@ -25,9 +39,9 @@ typedef struct Instruction Instruction; //Forward declaration
 struct Instruction {
     int (*funct_ptr)(CPU*, Instruction*); //Pointer to function
     
-    //Operands. Always 16 bit int for consistency
-    uint16_t first_operand;
-    uint16_t second_operand;
+    //Operands.
+    uint8_t first_operand;
+    uint8_t second_operand;
 
     size_t num_bytes; //Size of instruction in bytes
 };
@@ -116,25 +130,21 @@ int rla(CPU*, Instruction*); //rotate left, rotate in carry bit
 //Call instructions
 int call_imm16(CPU*, Instruction*); //Calls function at imm16
 int call_flag_imm16(CPU*, Instruction*); //Calls function at imm16 if flag is set
-int call_notflag_imm16(CPU*, Instruction*); //Cals function at imm16 if flag is clear
 
 int rst_imm16(CPU*, Instruction*); //Jump to hard coded addresses
 
 //Absolute Jump
 int jp_imm16(CPU*, Instruction*); //Unconditional jump to address
 int jp_flag_imm16(CPU*, Instruction*); //Jump if flag is set
-int jp_notflag_imm16(CPU*, Instruction*); //Jump if flag is not set
 int jp_hl(CPU*, Instruction*); //Outlier that jumps to the address stored in HL
 
 //Relative Jump
 int jr_imm8s(CPU*, Instruction*); //Unconditionaly
 int jr_flag_imm8s(CPU*, Instruction*); //If flag
-int jr_notflag_imm8s(CPU*, Instruction*); //If not flag
 
 //Return Instructions
 int ret(CPU*, Instruction*); //Unconditional
 int ret_flag(CPU*, Instruction*); //Return if flag is set
-int ret_notflag(CPU*, Instruction*); //Return if flag is not set
 
 int reti(CPU*, Instruction*); //Return from interrupt handler
 
