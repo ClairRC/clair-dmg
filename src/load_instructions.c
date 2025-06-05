@@ -143,23 +143,10 @@ int ld_r16_imm8s(CPU* cpu, Instruction* instruction) {
     //Update flags
     clearFlag(cpu, ZERO);
     clearFlag(cpu, SUB);
-
-    //Check for carry
-    //This particular instruction is weird and looks at the lower byte rather
-    //then the entire value of sp
-
-    //Preserves lower byte of both operands, and adds them together ot see if they overflow at all
-    if ((cpu->registers.sp & 0xFF) + (uint8_t)src_offset > 0xFF)
-        setFlag(cpu, CARRY);
-    else 
-        clearFlag(cpu, CARRY);
-
-    //Check for half carry
-    if ((cpu->registers.sp & 0xF) + ((uint8_t)src_offset & 0xF) > 0xF)
-        setFlag(cpu, HALFCARRY);
-    else
-        clearFlag(cpu, HALFCARRY);
-    
+    //This instruction does the signed addition, so it only checks the lower byte of the unsigned addition
+    //So this masks the operands to 8/4 bits and checks for overflow and updates accordingly
+    updateFlag(cpu, CARRY, ((cpu->registers.sp & 0xFF) + (uint8_t)src_offset) > 0xFF);
+    updateFlag(cpu, HALFCARRY, ((cpu->registers.sp & 0xF) + ((uint8_t)src_offset & 0xF)) > 0xF);
 
     //12 t-cycles
     return 12;
