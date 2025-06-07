@@ -18,6 +18,14 @@ typedef struct {
     uint16_t pc;
 } RegisterFile;
 
+//Struct for some special CPU flags
+typedef struct {
+    int IME; //Master interrupt enable
+    int enableIME; //EI instruction is delayed by 1 instruction, so this tracks that state
+    int isHalted; //Checks if CPU is currently in HALT mode
+    int halt_bug; //Bug that skips first byte after halt is exited based on interrupt flags
+} CPUState;
+
 //CPU struct
 /*
 * TODO:
@@ -27,6 +35,7 @@ typedef struct {
 
 typedef struct {
     RegisterFile registers;
+    CPUState state;
 } CPU;
 
 CPU* cpu_init(void);

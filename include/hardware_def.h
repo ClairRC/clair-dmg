@@ -28,8 +28,15 @@ typedef enum {
 
 //Flag enums to help with setting flags
 typedef enum {
+    //Flags stored in F register
     ZERO,
     SUB,
     HALFCARRY,
-    CARRY
+    CARRY,
+
+    //Special CPU state flags
+    IME,
+    ENABLE_IME,
+    IS_HALTED,
+    HALT_BUG
 } Flags;

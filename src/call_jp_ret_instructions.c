@@ -98,12 +98,78 @@ int jp_hl(CPU* cpu, Instruction* instruction) {
     return 4;
 }
 
-//Relative Jump
-int jr_imm8s(CPU*, Instruction*); //Unconditionaly
-int jr_flag_imm8s(CPU*, Instruction*); //If flag
+//Jumps to relative address
+int jr_imm8s(CPU* cpu, Instruction* instruction) {
+    //Get offset
+    int8_t offset = (int8_t)mem_read(cpu->registers.pc++);
+    
+    //Jump
+    cpu->registers.pc += (int8_t)offset;
 
-//Return Instructions
-int ret(CPU*, Instruction*); //Unconditional
-int ret_flag(CPU*, Instruction*); //Return if flag is set
+    //12 t-cycles
+    return 12;
+}
 
-int reti(CPU*, Instruction*); //Return from interrupt handler
+//Jumps to relative address if flag is set/cleared
+int jr_flag_imm8s(CPU* cpu, Instruction* instruction) {
+    //Get offset
+    int8_t offset = (int8_t)mem_read(cpu->registers.pc++);
+
+    //If flag condition is true jump
+    if (flagIsSet(cpu, instruction->first_operand) == instruction->second_operand) {
+        cpu->registers.pc += (int8_t) offset;
+
+        //12 t-cycles if jump happens
+        return 12;
+    }
+    else
+        //8 t-cycles if no jump
+        return 8;
+}
+
+//Returns from function call
+int ret(CPU* cpu, Instruction* instruction) {
+    //Gets return address off stack
+    uint8_t lsb = mem_read(cpu->registers.sp++);
+    uint8_t msb = mem_read(cpu->registers.sp++);
+
+    //Jumps back
+    cpu->registers.pc = UNSIGNED_16(lsb, msb);
+
+    //16 t-cycles
+    return 16;
+}
+
+//Returns from function call if flag is set/clear
+int ret_flag(CPU* cpu, Instruction* instruction) {
+    //Checks condition then returns if true
+    if (flagIsSet(cpu, instruction->first_operand) == instruction->second_operand) {
+        //Get address off stack
+        uint8_t lsb = mem_read(cpu->registers.sp++);
+        uint8_t msb = mem_read(cpu->registers.sp++);
+
+        cpu->registers.pc = UNSIGNED_16(lsb, msb);
+
+        //20 t-cycles if return
+        return 20;
+    }
+    else 
+        //8 t-cycles if no return
+        return 8;
+}
+
+//Returns from interrupt handler
+int reti(CPU* cpu, Instruction* instruction) {
+    //Get return address off stack
+    uint8_t lsb = mem_read(cpu->registers.sp++);
+    uint8_t msb = mem_read(cpu->registers.sp++);
+
+    //Jump to address
+    cpu->registers.pc = UNSIGNED_16(lsb, msb);
+
+    //Enables IME
+    setFlag(cpu, IME);
+
+    //16 t-cycles
+    return 16;
+}

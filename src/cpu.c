@@ -8,6 +8,7 @@
 //There should only ever be one of these
 CPU* cpu_init() {
     RegisterFile rf = {0};
+    CPUState cpu_state = {0};
     CPU* cpu = (CPU*)malloc(sizeof(CPU));
 
     //If memory isn't allocated, return an error
@@ -17,6 +18,7 @@ CPU* cpu_init() {
     }
 
     cpu->registers = rf;
+    cpu->state = cpu_state;
 
     return cpu;
 }
@@ -218,6 +220,18 @@ int setFlag(CPU* cpu, Flags flag) {
         case CARRY:
             cpu->registers.F |= FLAG_CARRY;
             break;
+        case IME:
+            cpu->state.IME = 1;
+            break;
+        case ENABLE_IME:
+            cpu->state.enableIME = 1;
+            break;
+        case IS_HALTED:
+            cpu->state.isHalted = 1;
+            break;
+        case HALT_BUG:
+            cpu->state.halt_bug = 1;
+            break;
         default:
             printError("Error: Invalid flag!");
             return 1; //Return 1 for failure
@@ -246,6 +260,18 @@ int clearFlag(CPU* cpu, Flags flag) {
             break;
         case CARRY:
             cpu->registers.F &= ~FLAG_CARRY;
+            break;
+        case IME:
+            cpu->state.IME = 0;
+            break;
+        case ENABLE_IME:
+            cpu->state.enableIME = 0;
+            break;
+        case IS_HALTED:
+            cpu->state.isHalted = 0;
+            break;
+        case HALT_BUG:
+            cpu->state.halt_bug = 0;
             break;
         default:
             printError("Error: Invalid flag!");
@@ -294,6 +320,11 @@ int flagIsSet(CPU* cpu, Flags flag) {
             break;
         case CARRY:
             if ((flagVal & FLAG_CARRY) == 0)
+                flagState = 0;
+            break;
+        case IME:
+            //IME is write-only, but I'll keep it for interrupt handling, and for consistency
+            if (cpu->state.IME == 0)
                 flagState = 0;
             break;
         default:
