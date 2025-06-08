@@ -1,3 +1,5 @@
+#ifndef HARDWARE_DEF_H
+#define HARDWARE_DEF_H
 //Defines enums that are used throughout the emulator
 
 //CPU Flags (stored in F register)
@@ -40,3 +42,14 @@ typedef enum {
     IS_HALTED,
     HALT_BUG
 } Flags;
+
+//Enum so memory struct knows who is accessing it
+//This is because during certain modes of the PPU or DMA transfer,
+//some memory reads are blocked from the CPU
+typedef enum {
+    CPU_ACCESS,
+    PPU_ACCESS,
+    DMA_ACCESS
+} Accessor;
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef INSTRUCTIONS_H
+#define INSTRUCTIONS_H
+
 #include "cpu.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -45,6 +48,12 @@ struct Instruction {
 
     size_t num_bytes; //Size of instruction in bytes
 };
+
+//Lookup tables for CPU instructions.
+extern Instruction main_instructions[256];
+extern Instruction cb_instructions[256];
+
+void init_opcodes(); //Populates instruction tables in opcodes.c
 
 //Instruction functions
 //Returns number of T-states instruction took
@@ -176,3 +185,5 @@ int srl_r(CPU*, Instruction*);
 int bit_b_r(CPU*, Instruction*);
 int res_b_r(CPU*, Instruction*);
 int set_b_r(CPU*, Instruction*);
+
+#endif

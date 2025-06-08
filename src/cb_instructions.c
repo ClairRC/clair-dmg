@@ -8,7 +8,7 @@ uint8_t getVal(CPU* cpu, Registers reg) {
     uint8_t val;
 
     if (reg == REG_HL)
-        val = mem_read(getRegisterValue16(cpu, reg));
+        val = mem_read(cpu->memory, getRegisterValue16(cpu, reg), CPU_ACCESS);
     else
         val = getRegisterValue8(cpu, reg);
 
@@ -17,7 +17,7 @@ uint8_t getVal(CPU* cpu, Registers reg) {
 
 void setVal(CPU* cpu, Registers reg, uint8_t result) {
     if (reg == REG_HL)
-        mem_write(getRegisterValue16(cpu, reg), result);
+        mem_write(cpu->memory, getRegisterValue16(cpu, reg), result, CPU_ACCESS);
     else
         setRegisterValue(cpu, reg, result);
 }

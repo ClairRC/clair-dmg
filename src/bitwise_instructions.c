@@ -26,7 +26,7 @@ int and_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     uint8_t result = firstOp & secondOp;
 
@@ -47,7 +47,7 @@ int and_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int and_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(cpu->registers.pc++);
+    uint8_t secondOp = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
 
     uint8_t result = firstOp & secondOp;
 
@@ -90,7 +90,7 @@ int xor_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     uint8_t result = firstOp ^ secondOp;
 
@@ -111,7 +111,7 @@ int xor_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int xor_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(cpu->registers.pc++);
+    uint8_t secondOp = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
 
     uint8_t result = firstOp ^ secondOp;
 
@@ -154,7 +154,7 @@ int or_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     uint8_t result = firstOp | secondOp;
 
@@ -175,7 +175,7 @@ int or_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int or_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(cpu->registers.pc++);
+    uint8_t secondOp = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
 
     uint8_t result = firstOp | secondOp;
 

@@ -27,7 +27,7 @@ int add_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
     uint8_t dest_val = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t src_val = mem_read(src_address);
+    uint8_t src_val = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     uint16_t result = src_val + dest_val;
 
@@ -47,7 +47,7 @@ int add_r8_r16mem(CPU* cpu, Instruction* instruction) {
 //Add value in 8-bit regsiter to 8-bit immediate and store it in the 8-bit regsiter
 int add_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t src_val = mem_read(cpu->registers.pc++);
+    uint8_t src_val = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
     uint8_t dest_val = getRegisterValue8(cpu, instruction->first_operand);
     
     uint16_t result = src_val + dest_val;
@@ -88,7 +88,7 @@ int add_r16_r16(CPU* cpu, Instruction* instruction) {
 //Adds value stored in 16-bit register to signed 8-bit immediate and stores it in 16-bit register
 int add_r16_imm8s(CPU* cpu, Instruction* instruction) {
     //Get values
-    int8_t src_val = (int8_t)mem_read(cpu->registers.pc++);
+    int8_t src_val = (int8_t)mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
     uint16_t dest_val = getRegisterValue16(cpu, instruction->first_operand);
 
     uint16_t result = dest_val + src_val;
@@ -133,7 +133,7 @@ int adc_r8_r8(CPU* cpu, Instruction* instruction) {
 int adc_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t src_val = mem_read(src_address);
+    uint8_t src_val = mem_read(cpu->memory, src_address, CPU_ACCESS);
     uint8_t dest_val = getRegisterValue8(cpu, instruction->first_operand);
     int carry = flagIsSet(cpu, CARRY);
 
@@ -155,7 +155,7 @@ int adc_r8_r16mem(CPU* cpu, Instruction* instruction) {
 //Adds value in 8 bit register to immediate 8 bit value and carry and stores value in 8-bit register
 int adc_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t src_val = mem_read(cpu->registers.pc++);
+    uint8_t src_val = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
     uint8_t dest_val = getRegisterValue8(cpu, instruction->first_operand);
     int carry = flagIsSet(cpu, CARRY);
 
@@ -199,7 +199,7 @@ int sub_r8_r8(CPU* cpu, Instruction* instruction) {
 int sub_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
 
     uint8_t result = firstOp - secondOp; 
@@ -221,7 +221,7 @@ int sub_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int sub_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOperand = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOperand = mem_read(cpu->registers.pc++);
+    uint8_t secondOperand = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
 
     uint8_t result = firstOperand - secondOperand;
 
@@ -265,7 +265,7 @@ int sbc_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
     int carry = flagIsSet(cpu, CARRY);
 
     uint8_t result = firstOp - secondOp - carry;
@@ -287,7 +287,7 @@ int sbc_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int sbc_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(cpu->registers.pc++);
+    uint8_t secondOp = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
     int carry = flagIsSet(cpu, CARRY);
 
     uint8_t result = firstOp - secondOp - carry;
@@ -326,7 +326,7 @@ int cp_r8_r16mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t secondOp = mem_read(src_address);
+    uint8_t secondOp = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     //Update flags
     setFlag(cpu, SUB);
@@ -342,7 +342,7 @@ int cp_r8_r16mem(CPU* cpu, Instruction* instruction) {
 int cp_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t firstOp = getRegisterValue8(cpu, instruction->first_operand);
-    uint8_t secondOp = mem_read(cpu->registers.pc++);
+    uint8_t secondOp = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
 
     //Update flags
     setFlag(cpu, SUB);

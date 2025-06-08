@@ -33,10 +33,10 @@ int inc_r8(CPU* cpu, Instruction* instruction) {
 int inc_r16mem(CPU* cpu, Instruction* instruction) {
     //Get value
     uint16_t src_address = getRegisterValue16(cpu, instruction->first_operand);
-    uint8_t val = mem_read(src_address);
+    uint8_t val = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     //Store result
-    mem_write(src_address, val + 1);
+    mem_write(cpu->memory, src_address, val + 1, CPU_ACCESS);
 
     //Update flags
     clearFlag(cpu, SUB);
@@ -80,10 +80,10 @@ int dec_r8(CPU* cpu, Instruction* instruction) {
 int dec_r16mem(CPU* cpu, Instruction* instruction) {
     //Get value
     uint16_t src_address = getRegisterValue16(cpu, instruction->first_operand);
-    uint8_t val = mem_read(src_address);
+    uint8_t val = mem_read(cpu->memory, src_address, CPU_ACCESS);
 
     //Store result
-    mem_write(src_address, val - 1);
+    mem_write(cpu->memory, src_address, val - 1, CPU_ACCESS);
 
     //Update flags
     setFlag(cpu, SUB);

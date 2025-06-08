@@ -1,5 +1,10 @@
+#ifndef MEMORY_H
+#define MEMORY_H
+
 #include <stdint.h>
 #include <stddef.h>
+
+#include "hardware_def.h"
 
 //Memory emulation
 
@@ -44,11 +49,13 @@ typedef struct{
 } Memory;
 
 //Initialize memory
-Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks);
+Memory* memory_init(size_t, size_t, size_t);
 
 //Destroy memoy
-void memory_destroy(Memory* mem);
+void memory_destroy(Memory*);
 
 //Read/Write dispatch functions
-uint8_t mem_read(uint16_t address);
-int mem_write(uint16_t address, uint8_t value);
+uint8_t mem_read(Memory*, uint16_t, Accessor);
+int mem_write(Memory*, uint16_t, uint8_t, Accessor);
+
+#endif

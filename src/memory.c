@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "logging.h"
 
+//TODO: Fix this function, particularly to be able to read memory before knowing how many memory banks there are for startup.
 Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks) {
     if (rom_banks < 1 || wram_banks < 1) {
         printError("Error: There must be at least 1 ROM bank and 1 WRAM bank.");
@@ -67,10 +68,10 @@ void memory_destroy(Memory* mem) {
 
 //TODO: Implement read/write functions!!!
 //Placeholders for now
-uint8_t mem_read(uint16_t address) {
+uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
     return 0;
 }
 
-int mem_write(uint16_t address, uint8_t value) {
+int mem_write(Memory* mem, uint16_t address, uint8_t value, Accessor access) {
     return 0;
 }

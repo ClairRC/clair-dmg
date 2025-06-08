@@ -1,7 +1,6 @@
 #ifndef CPU_H
 #define CPU_H
 #include <stdint.h>
-#include "hardware_def.h"
 #include "memory.h"
 
 //Register file struct
@@ -36,6 +35,7 @@ typedef struct {
 typedef struct {
     RegisterFile registers;
     CPUState state;
+    Memory* memory;
 } CPU;
 
 CPU* cpu_init(void);
