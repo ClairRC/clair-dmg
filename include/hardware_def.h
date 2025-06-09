@@ -52,4 +52,14 @@ typedef enum {
     DMA_ACCESS
 } Accessor;
 
+//Enum for PPU modes. This is used by the memory module to
+//restrict CPU access during certain modes. It also allows the PPU
+//to set the flag for when the mode changes
+typedef enum {
+    PPU_MODE_0,
+    PPU_MODE_1,
+    PPU_MODE_2,
+    PPU_MODE_3
+} PPU_Mode;
+
 #endif

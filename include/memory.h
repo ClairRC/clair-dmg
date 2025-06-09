@@ -46,6 +46,11 @@ typedef struct{
     size_t num_wram_banks;
     size_t current_wram_bank;
     uint8_t* wram_x;
+
+    //Special flags/timer for DMA and PPU mode
+    PPU_Mode current_ppu_mode;
+    int dma_active;
+    uint16_t remaining_dma_cycles;
 } Memory;
 
 //Initialize memory

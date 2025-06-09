@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "memory.h"
+#include "hardware_def.h"
 #include "logging.h"
 
 //TODO: Fix this function, particularly to be able to read memory before knowing how many memory banks there are for startup.
@@ -47,6 +48,11 @@ Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks) {
     else
         //Subtract 1 from wram_banks because bank 0 is already included
         mem->wram_x = (uint8_t*)malloc((wram_banks-1) * 0x1000); //wram area is 0x1000 bytes
+
+    //Initilize special flags and values
+    mem->current_ppu_mode = PPU_MODE_0;
+    mem->dma_active = 0;
+    mem->remaining_dma_cycles = 0;
 }
 
 void memory_destroy(Memory* mem) {
@@ -66,12 +72,186 @@ void memory_destroy(Memory* mem) {
     free(mem);
 }
 
-//TODO: Implement read/write functions!!!
-//Placeholders for now
+//Helper functions and enums. These will mae the read/write functions less complex
+typedef enum {RANGE_ROM, RANGE_VRAM, RANGE_EXRAM, RANGE_WRAM, RANGE_OAM, RANGE_IO} MemoryRange;
+int checkNoMemAccess(Memory*, MemoryRange, Accessor); //Checks whether memory can be accessed
+
+//R/W Memory functions
 uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
+    
+}
+
+//Returns 0 if access to memory is blocked or write fails
+int mem_write(Memory* mem, uint16_t address, uint8_t value, Accessor access) {
     return 0;
 }
 
-int mem_write(Memory* mem, uint16_t address, uint8_t value, Accessor access) {
-    return 0;
+/*
+* CPU is occasionally locked out of accessing certain parts of memory during DMA transfer
+* or certain PPU modes. During DMA transfer on DMG, CPU can only access HRAM.
+* (Note this works differently on CGB because of ROM and WRAM using separate buses)
+*
+* CPU is also locked out of accessing OAM at certain times during certain PPU modes.
+* PPU and DMA can always access everything they need.
+*/
+
+//TODO: Implement CGB DMA transfer behavior
+
+//Helper function that returns a pointer to the memory that the address is meant to point to
+//This makes me only have to do this big if/else chain once instead of twice, and
+//the read/write functions will be cleaner with less cluttered logic..
+//Returns NULL if memory is currently inaccessible/not properly initialized.
+uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
+    //TODO: Implement getCurrentBank-type function to prevent errors here
+    //I'm proud of this idea :)
+
+    //Rom bank 0
+    if (address >= 0x3FFF) {
+        if (checkNoMemAccess(mem, RANGE_ROM, accessor)) {return NULL;}
+        
+        uint16_t index = address;
+        return &(mem->rom_0[index]);
+    }
+
+    //Rom bank 1-NN
+    else if (address >= 0x4000 && address <= 0x7FFF) {
+        //If somehow this gets called with only 1 rom bank (shouldn't happen), return NULL for default value
+        if (mem->rom_x == NULL || checkNoMemAccess(mem, RANGE_ROM, accessor)) {return NULL;}
+        uint32_t index = (address - 0x4000) + (mem->current_rom_bank - 1) * 0x4000;
+
+        return &(mem->rom_x[index]);
+    }
+
+    //VRAM bank 0/1
+    //TODO: Add logic for VRAM_1 when implementing CGB
+    else if(address >= 0x8000 && address <= 0x9FFF) {
+        if (checkNoMemAccess(mem, RANGE_VRAM, accessor)) {return NULL;}
+        uint16_t index = address - 0x8000;
+
+        return &(mem->vram_0[index]);
+    }
+
+    //EXRAM bank 0-NN
+    else if(address >= 0xA000 && address <= 0xBFFF) {
+        if (mem->exram_x == NULL || checkNoMemAccess(mem, RANGE_EXRAM, accessor)) {return NULL;}
+        uint32_t index = (address - 0xA000) + mem->current_exram_bank * 0x2000;
+
+        return &(mem->exram_x[index]);
+    }
+
+    //WRAM bank 0
+    else if(address >= 0xC000 && address <= 0xCFFF) {
+        if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
+        uint16_t index = address - 0xC000;
+
+        return &(mem->wram_0[index]);
+    }
+
+    //WRAM bank 1-7 (CGB)
+    else if(address >= 0xD000 && address <= 0xDFFF) {
+        if(mem->wram_x == NULL || checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
+        uint16_t index = (address - 0xD000) + (mem->current_wram_bank - 1) * 0x1000;
+
+        return &(mem->wram_x[index]);
+    }
+
+    //Echo RAM (WRAM bank 0 mirror)
+    //This area of memory points to the same physical memory as WRAM bank 0
+    //This is because the address bus in the GameBoy for this section only reads the bottom 13 bits
+    //As a result, the same memory is accessed in this region as 0xC000-0xDDFF
+    else if(address >= 0xE000 && address <= 0xFDFF) {
+        if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
+        uint16_t index = address - 0xE000;
+
+        return &(mem->wram_0[index]);
+    }
+
+    //OAM
+    else if(address >= 0xFE00 && address <= 0xFE9F) {
+        if (checkNoMemAccess(mem, RANGE_OAM, accessor)) {return NULL;}
+        uint8_t index = address - 0xFE00;
+
+        return &(mem->oam[index]);
+    }
+
+    //Prohibited memory
+    else if (address >= 0xFEA0 && address <= 0xFEFF) {
+        //This area is prohibited by Nintendo, and has weird behavior.
+        //Sometimes it triggers OAM corruption, sometimes it does something else...
+        //For now, it will be ignored/return 0xFF
+        //TODO: Implement specific behavior
+        return NULL;
+    }
+
+    //I/O registers
+    else if (address >= 0xFF00 && address <= 0xFF7F) {
+        if (checkNoMemAccess(mem, RANGE_IO, accessor)) {return NULL;}
+        uint8_t index = address - 0xFF00;
+
+        return &(mem->io[index]);
+    }
+
+    //HRAM/Interrup enable register (0xFFFF)
+    else if (address >= 0xFF80 && address <= 0xFFFF) {
+        //I grouped IE register with HRAM, so this will have a special check if it can be accessed
+        //(It can Not be accessed during DMA transfer on DMG) (I'll have to add more logic here when CGB gets implemented)
+        if (address == 0xFFFF && mem->dma_active) {return NULL;} //IE during DMA transfer
+        uint8_t index = address - 0xFF80;
+
+        return &(mem->hram[index]);
+    }
+
+    //Other (Should HOPEFULLY never happen)
+    else
+        return NULL; 
+}
+
+
+//Helper function to determine accessibility of different memory ranges during DMA or PPU modes
+//Returns 1 if no access, 0 if yes access
+int checkNoMemAccess(Memory* mem, MemoryRange range, Accessor accessor) {
+    //As far as I know, there is no restriction except for CPU access
+    //This may be different on CGB
+    //TODO: confirm that ^
+    if (accessor != CPU_ACCESS)
+        return 0;
+
+    switch (range) {
+        case RANGE_ROM:
+            //No access during DMA
+            return mem->dma_active;
+            break;
+
+        case RANGE_VRAM:
+            //No access during DMA or PPU mode 3
+            return mem->dma_active 
+                || mem->current_ppu_mode == PPU_MODE_3;
+            break;
+
+        case RANGE_EXRAM:
+            //No access during DMA
+            return mem->dma_active;
+            break;
+
+        case RANGE_WRAM:
+            //No access during DMA
+            return mem->dma_active;
+            break;
+
+        case RANGE_OAM:
+            //No access during DMA or PPU mode 2 or 3
+            return mem->dma_active
+                || mem->current_ppu_mode == PPU_MODE_2
+                || mem->current_ppu_mode == PPU_MODE_3;
+                break;
+
+        case RANGE_IO:
+            //No access during DMA
+            return mem->dma_active;
+            break;
+
+        default:
+            //Should never get here, but can never be too sure.
+            return 0;
+    }
 }
