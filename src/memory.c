@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "hardware_def.h"
 #include "logging.h"
+#include "hardware_registers.h"
 
 //TODO: Fix this function, particularly to be able to read memory before knowing how many memory banks there are for startup.
 Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks) {
@@ -53,6 +54,8 @@ Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks) {
     mem->current_ppu_mode = PPU_MODE_0;
     mem->dma_active = 0;
     mem->remaining_dma_cycles = 0;
+
+    return mem;
 }
 
 void memory_destroy(Memory* mem) {
@@ -72,17 +75,71 @@ void memory_destroy(Memory* mem) {
     free(mem);
 }
 
-//Helper functions and enums. These will mae the read/write functions less complex
+//Helper functions and enums. These will make the read/write functions less complex
 typedef enum {RANGE_ROM, RANGE_VRAM, RANGE_EXRAM, RANGE_WRAM, RANGE_OAM, RANGE_IO} MemoryRange;
 int checkNoMemAccess(Memory*, MemoryRange, Accessor); //Checks whether memory can be accessed
+uint8_t* getMemPtr(Memory*, uint16_t, Accessor);
 
 //R/W Memory functions
 uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
-    
+    uint8_t* mem_ptr = getMemPtr(mem, address, accessor);
+
+    //Null pointer means memory is inaccessible
+    if (mem_ptr == NULL) {
+        printError("Read attempted from inaccessible address");
+        return 0xFF;
+    }
+
+    uint8_t result = *mem_ptr; //Value at pointer if its not NULL
+
+    //Hardware registers have some weird quirks
+    //Applies a mask to the result so that the correct values get returned for special registers
+    if (address >= 0xFF00 && address <= 0xFFFF) {
+        HardwareRegister hw_reg = hw_registers[(uint8_t)address]; //Gets hardware register from LSB
+
+        //TODO: Fix this when implementing CGB
+        if (hw_reg.cgb_only == 1) {
+            printError("Read attempted from inaccessible address");
+            return 0xFF;
+        }
+
+        //Bits with a 0 are write-only, so this forces those bits to be set as 1, which is correct behavior for this
+        result |= ~hw_reg.read_mask;
+    }
+
+    //Return value
+    return result;
 }
 
-//Returns 0 if access to memory is blocked or write fails
-int mem_write(Memory* mem, uint16_t address, uint8_t value, Accessor access) {
+//Returns 1 if access to memory is blocked or write fails
+int mem_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor) {
+    uint8_t* mem_ptr = getMemPtr(mem, address, accessor);
+
+    //If null pointer, no write and return 1 (maybe good for debugging later)
+    if (mem_ptr == NULL) {
+        printError("Write attempted at inaccessible address");
+        return 1;
+    }
+
+    uint8_t old_val = *mem_ptr; //Gets currently stored value
+
+    //Applies write-mask for weird hardware registers
+    if (address >= 0xFF00 && address <= 0xFFFF) {
+        HardwareRegister hw_reg = hw_registers[(uint8_t)address];
+
+        //TODO: Implement proper CGB behavior
+        if (hw_reg.cgb_only == 1) {
+            printError("Write attempted at inaccessible address");
+            return 1; //Return 1 and do no write for CGB only registers for now
+        }
+
+        //Preserves write bits from new_val and 0s R/O bits, and does the opposite for old_val
+        //Bitwise or glues them together
+        new_val = (new_val & hw_reg.write_mask) | (old_val & ~hw_reg.write_mask);
+    }
+
+    *mem_ptr = new_val;
+    
     return 0;
 }
 
