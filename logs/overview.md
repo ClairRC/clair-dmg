@@ -1,5 +1,6 @@
 # Overall 
 (These logs will be ramble-y)     
+       
 (Note that not all of the information in here will be 100% correct-- It is just to the best of my knowledge. Some terminology or details may not be fully accurate.)
 
 ## General
