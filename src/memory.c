@@ -98,7 +98,7 @@ uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
         HardwareRegister hw_reg = hw_registers[(uint8_t)address]; //Gets hardware register from LSB
 
         //TODO: Fix this when implementing CGB
-        if (hw_reg.cgb_only == 1) {
+        if (hw_reg.cgb_only) {
             printError("Read attempted from inaccessible address");
             return 0xFF;
         }
@@ -128,7 +128,7 @@ int mem_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor)
         HardwareRegister hw_reg = hw_registers[(uint8_t)address];
 
         //TODO: Implement proper CGB behavior
-        if (hw_reg.cgb_only == 1) {
+        if (hw_reg.cgb_only) {
             printError("Write attempted at inaccessible address");
             return 1; //Return 1 and do no write for CGB only registers for now
         }
@@ -163,7 +163,7 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
     //I'm proud of this idea :)
 
     //Rom bank 0
-    if (address >= 0x3FFF) {
+    if (address <= 0x3FFF) {
         if (checkNoMemAccess(mem, RANGE_ROM, accessor)) {return NULL;}
         
         uint16_t index = address;
