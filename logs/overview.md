@@ -1,5 +1,5 @@
 # Overall 
-(These logs will be ramble-y)
+(These logs will be ramble-y)     
 (Note that not all of the information in here will be 100% correct-- It is just to the best of my knowledge. Some terminology or details may not be fully accurate.)
 
 ## General
@@ -30,6 +30,6 @@ I've been attempting to consider the performance of this emulator as I go, but I
 ### Echo RAM
 This is more of something that I just find interesting, which is that the address range from 0xE000-0xFDFF points to the same memory as 0xC000-DDFF. This apparently this is because the address bus that accesses WRAM only reads the lower 13 bits, and the address space that maps to WRAM is 0xC000-0xFDFF. But since the top 3 bits are not even read, 0001 and 0000 are the only 2 unique values for the uppermost nibble, so the range for the upper byte ends up going from 0000 0000 (0x00) to 0001 1111 (0x1F) starting at the address 0xC0, and then after that even though the memory address is different, the address bus takes it to the same place, effectively looping it back. Basically this is quite literally due to an overflow of the 12th bit, which is a really fun concept to see in action! It's one of those "wait why didn't they just like design it better" moments, which leads to one of those "hardware design is a unique challenge and decisions like this help reduce cost and improve performance" moments, so that's fun. Either way i just wanted to talk about that.
 
-## Accuracy
+### Accuracy
 Having a completely accurate emulator is hard for any computer, but the GameBoy especially has just some very strange rules. Like "if you write here during this time, then it'll write garbage data from here" and its like... Okay, I can see why that might happen physically, but emulating it is nearly impossible to control. The big thing is getting the timing of everything correct, which I am trying to address by keeping track of the number of ticks each instruction takes, which will hopefully allow the timing to be accurate enough that you wouldn't notice a difference if you were to play a game normally. I know that games like Pokemon Red/Blue have glitches that are crazy enough to rely on these weird timing differences and mid-instruction quirks, so I decided early on that my goal was not "cycle accurate emulation" but "emulation so that if you were to load a game ROM you wouldn't even notice unless you are looking". There are special test ROMs that are meant to test a bunch of different quirks and check for emulator accuracy, and I have not heard of a single emulator that passed every single test ROM for every single little weird quirk. The most accurate emulator appears to be SameBoy, which successfully passes MOST test ROMs, but even that fails a couple of edge cases. Regardless, my goal is to at least have accurate enough emulation that my emulator can be fully functional and pass a handful of the weird edge case tests.
 
