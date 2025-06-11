@@ -20,13 +20,15 @@ CPU* cpu_init() {
 
     cpu->registers = rf;
     cpu->state = cpu_state;
-    cpu->memory = NULL;
+    cpu->memory = NULL; //TODO: Initialize this
 
     return cpu;
 }
 
 //Function to destroy CPU to prevent memory leaks.
 void cpu_destroy(CPU* cpu) {
+    memory_destroy(cpu->memory);
+    
     if (cpu != NULL)
         free(cpu);
 }

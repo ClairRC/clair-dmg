@@ -62,4 +62,14 @@ typedef enum {
     PPU_MODE_3
 } PPU_Mode;
 
+//Specifices the specific base MBC (Memory Banking Control) type
+//TODO: Implement the rest of these
+typedef enum {
+    MBC_NONE,
+    MBC_1,
+    MBC_2,
+    MBC_3,
+    MBC_5
+} MBC_Type;
+
 #endif

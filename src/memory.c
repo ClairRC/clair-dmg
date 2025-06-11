@@ -3,55 +3,36 @@
 #include "hardware_def.h"
 #include "logging.h"
 #include "hardware_registers.h"
+#include "mbc_handler.h"
 
-//TODO: Fix this function, particularly to be able to read memory before knowing how many memory banks there are for startup.
-Memory* memory_init(size_t rom_banks, size_t exram_banks, size_t wram_banks) {
-    if (rom_banks < 1 || wram_banks < 1) {
-        printError("Error: There must be at least 1 ROM bank and 1 WRAM bank.");
-        return NULL;
-    }
-
+Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_byte) {
     Memory* mem = (Memory*)malloc(sizeof(Memory));
-
-    //Check for error with initialization
+    
+    //if Initialization failes, return NULL
     if (mem == NULL) {
-        printError("Error: Unable to initialize memory.");
+        printError("Failed to initialize memory.");
         return NULL;
     }
 
-    //Initialize dynamic values
-    mem->num_rom_banks = rom_banks;
-    mem->num_exram_banks = exram_banks;
-    mem->num_wram_banks = wram_banks;
+    //Get MBC chip
+    MBC* mbc_chip = mbc_init(mbc_type, rom_size_byte, ram_size_byte);
 
-    mem->current_rom_bank = 0;
-    mem->current_exram_bank = 0;
+    //Setup ROM and EXRAM arrays
+    uint8_t* rom_x = (uint8_t*)malloc(mbc_chip->num_rom_banks * 0x4000);
+    uint8_t* exram_x = (uint8_t*)malloc(mbc_chip->num_exram_banks * 0x2000);
+
+    //Error for failing to initialize this
+    if (rom_x == NULL || exram_x == NULL) {
+        printError("Failed to intialize memory");
+        free(mem);
+        return NULL;
+    }
+
+    //WRAM bank pointer. Always 0 on DMG
     mem->current_wram_bank = 0;
 
-    //Since rom and wram banks 0 are already included, if there is only 1, then
-    //we don't need these pointers to include anything. 
-    //Similarly, if there is 0 exram banks, that array doesnt exist, so we keep it NULL.
-    
-    //TODO: Add error for failing to initialize any of these.
-    if (rom_banks < 2)
-        mem->rom_x = NULL;
-    else
-        //Subtract 1 from rom_banks because bank 0 is already included
-        mem->rom_x = (uint8_t*)malloc((rom_banks-1) * 0x4000); //rom area is 0x4000 bytes
-
-    if (exram_banks < 1)
-        mem->exram_x = NULL;
-    else
-        mem->exram_x = (uint8_t*)malloc(exram_banks * 0x2000); //exram area is 0x2000 bytes
-
-    if (wram_banks < 2)
-        mem->wram_x = NULL;
-    else
-        //Subtract 1 from wram_banks because bank 0 is already included
-        mem->wram_x = (uint8_t*)malloc((wram_banks-1) * 0x1000); //wram area is 0x1000 bytes
-
-    //Initilize special flags and values
-    mem->current_ppu_mode = PPU_MODE_0;
+    //Other flags
+    mem->current_ppu_mode = 0;
     mem->dma_active = 0;
     mem->remaining_dma_cycles = 0;
 
@@ -68,9 +49,6 @@ void memory_destroy(Memory* mem) {
 
     if (mem->exram_x != NULL)
         free(mem->exram_x);
-
-    if (mem->wram_x != NULL)
-        free(mem->wram_x);
 
     free(mem);
 }
@@ -167,14 +145,14 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
         if (checkNoMemAccess(mem, RANGE_ROM, accessor)) {return NULL;}
         
         uint16_t index = address;
-        return &(mem->rom_0[index]);
+        return &(mem->rom_x[index]);
     }
 
     //Rom bank 1-NN
     else if (address >= 0x4000 && address <= 0x7FFF) {
-        //If somehow this gets called with only 1 rom bank (shouldn't happen), return NULL for default value
+        //If somehow this gets called with only 0 rom banks (shouldn't happen), return NULL for default value
         if (mem->rom_x == NULL || checkNoMemAccess(mem, RANGE_ROM, accessor)) {return NULL;}
-        uint32_t index = (address - 0x4000) + (mem->current_rom_bank - 1) * 0x4000;
+        uint32_t index = (address - 0x4000) + mem->mbc_chip->current_rom_bank * 0x4000;
 
         return &(mem->rom_x[index]);
     }
@@ -191,7 +169,8 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
     //EXRAM bank 0-NN
     else if(address >= 0xA000 && address <= 0xBFFF) {
         if (mem->exram_x == NULL || checkNoMemAccess(mem, RANGE_EXRAM, accessor)) {return NULL;}
-        uint32_t index = (address - 0xA000) + mem->current_exram_bank * 0x2000;
+        //Modulo total size of this area as exram addressing wraps back around.
+        uint32_t index = (address - 0xA000) + (mem->mbc_chip->current_exram_bank * 0x2000) % (mem->mbc_chip->num_exram_banks * 0x2000);
 
         return &(mem->exram_x[index]);
     }
@@ -201,13 +180,13 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
         if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
         uint16_t index = address - 0xC000;
 
-        return &(mem->wram_0[index]);
+        return &(mem->wram_x[index]);
     }
 
     //WRAM bank 1-7 (CGB)
     else if(address >= 0xD000 && address <= 0xDFFF) {
-        if(mem->wram_x == NULL || checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
-        uint16_t index = (address - 0xD000) + (mem->current_wram_bank - 1) * 0x1000;
+        if(checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
+        uint16_t index = (address - 0xD000) + mem->current_wram_bank * 0x1000;
 
         return &(mem->wram_x[index]);
     }
@@ -220,7 +199,7 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
         if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
         uint16_t index = address - 0xE000;
 
-        return &(mem->wram_0[index]);
+        return &(mem->wram_x[index]);
     }
 
     //OAM
