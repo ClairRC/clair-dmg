@@ -9,6 +9,9 @@
 #define FLAG_HALFCARRY (1<<5)
 #define FLAG_CARRY (1<<4)
 
+//Alias for emulator time for timing purposes (in t-cycles)
+typedef unsigned long emu_time;
+
 //Register enums to make sorting through all the
 //different opcodes a LITTLE less annoying
 typedef enum {

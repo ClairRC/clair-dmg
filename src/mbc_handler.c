@@ -186,7 +186,7 @@ void update_mbc5_data(MBC* mbc, uint16_t address, uint8_t value) {
     //ROM bank select
     else if (address <= 0x3FFF) {
         //Selects 9th bit of current ROM bank
-        mbc->current_rom_bank = (mbc->current_rom_bank & 0x00FF) | (uint16_t)(value & 0x01) << 9;
+        mbc->current_rom_bank = (mbc->current_rom_bank & 0x00FF) | ((uint16_t)(value & 0x01) << 9);
         mbc->current_rom_bank &= mbc->num_rom_banks-1;
     }
 
