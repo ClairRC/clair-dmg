@@ -37,6 +37,10 @@ void mbc_destroy(MBC*);
 
 //Determines current bank
 //For MBC1, it will also handle switching modes
-void update_current_bank(MBC*, uint16_t);
+void update_current_bank(MBC*, uint16_t, uint8_t);
+void update_mbc1_data(MBC*, uint16_t, uint8_t);
+void update_mbc2_data(MBC*, uint16_t, uint8_t);
+void update_mbc3_data(MBC*, uint16_t, uint8_t);
+void update_mbc5_data(MBC*, uint16_t, uint8_t);
 
 #endif

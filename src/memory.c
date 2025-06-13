@@ -17,16 +17,28 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
     //Get MBC chip
     MBC* mbc_chip = mbc_init(mbc_type, rom_size_byte, ram_size_byte);
 
+    mem->mbc_chip = mbc_chip;
+
     //Setup ROM and EXRAM arrays
     uint8_t* rom_x = (uint8_t*)malloc(mbc_chip->num_rom_banks * 0x4000);
-    uint8_t* exram_x = (uint8_t*)malloc(mbc_chip->num_exram_banks * 0x2000);
+    uint8_t* exram_x;
+    //MBC2 only has 0x200 addresses for RAM access. Weird edge case, but yes
+    if (mbc_chip->mbc_type != MBC_2)
+        exram_x = (uint8_t*)malloc(mbc_chip->num_exram_banks * 0x2000);
+    else 
+        exram_x = (uint8_t*)malloc(0x200);
 
     //Error for failing to initialize this
     if (rom_x == NULL || exram_x == NULL) {
         printError("Failed to intialize memory");
+        if (rom_x != NULL) {free(rom_x);}
+        if (exram_x != NULL) {free(exram_x);}
         free(mem);
         return NULL;
     }
+
+    mem->rom_x = rom_x;
+    mem->exram_x = exram_x;
 
     //WRAM bank pointer. Always 0 on DMG
     mem->current_wram_bank = 0;
@@ -85,6 +97,10 @@ uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
         result |= ~hw_reg.read_mask;
     }
 
+    //Edge case where MBC2 only accesses lower nibble of exram
+    if (mem->mbc_chip->mbc_type == MBC_2 && address >= 0xA000 && address <= 0xBFFF)
+        result |= 0xF0; //Sets upper nibble to 1111, preserves lower (accurate behavior)
+
     //Return value
     return result;
 }
@@ -116,7 +132,14 @@ int mem_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor)
         new_val = (new_val & hw_reg.write_mask) | (old_val & ~hw_reg.write_mask);
     }
 
+    //Edge case where MBC2 only accesses lower nibble of exram
+    if (mem->mbc_chip->mbc_type == MBC_2 && address >= 0xA000 && address <= 0xBFFF)
+        new_val &= 0x0F; //Sets upper nibble to 0000, preserves lower (accurate behavior)
+
     *mem_ptr = new_val;
+
+    //Updates the currently addressed ROM/RAM bank
+    update_current_bank(mem->mbc_chip, address, new_val);
     
     return 0;
 }
@@ -137,7 +160,6 @@ int mem_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor)
 //the read/write functions will be cleaner with less cluttered logic..
 //Returns NULL if memory is currently inaccessible/not properly initialized.
 uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
-    //TODO: Implement getCurrentBank-type function to prevent errors here
     //I'm proud of this idea :)
 
     //Rom bank 0
@@ -169,8 +191,14 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
     //EXRAM bank 0-NN
     else if(address >= 0xA000 && address <= 0xBFFF) {
         if (mem->exram_x == NULL || checkNoMemAccess(mem, RANGE_EXRAM, accessor)) {return NULL;}
-        //Modulo total size of this area as exram addressing wraps back around.
-        uint32_t index = (address - 0xA000) + (mem->mbc_chip->current_exram_bank * 0x2000) % (mem->mbc_chip->num_exram_banks * 0x2000);
+        uint32_t index;
+
+        //Index wraps around, but MBC2 is special because it only has 0x200 addresses
+        //This just makes it so if it is MBC2, it'll be a value between 0x0 and 0x200
+        if (mem->mbc_chip->mbc_type != MBC_2)
+            index = ((address - 0xA000) + (mem->mbc_chip->current_exram_bank * 0x2000)) % (mem->mbc_chip->num_exram_banks * 0x2000);
+        else
+            index = (address - 0xA000) % 0x200;
 
         return &(mem->exram_x[index]);
     }
@@ -265,8 +293,8 @@ int checkNoMemAccess(Memory* mem, MemoryRange range, Accessor accessor) {
             break;
 
         case RANGE_EXRAM:
-            //No access during DMA
-            return mem->dma_active;
+            //No access during DMA or when EXRAM is disabled by the MBC
+            return mem->dma_active || mem->mbc_chip->exram_enabled == 0;
             break;
 
         case RANGE_WRAM:
