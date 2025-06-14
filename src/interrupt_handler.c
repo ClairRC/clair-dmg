@@ -4,9 +4,15 @@
 int serviceInterrupt(CPU* cpu) {
     //This process basically just calls the interrupt itself. It takes 20 t-cycles
     
-    //If there is no interrupt pending in the IF flag, do nothing. No t-cycles consumed
-    uint8_t IF = cpu->memory->io[0x0F];
-    if (IF == 0x0)
+    //If there are interrupts that are waiting AND can be serviced, set flag
+    int interruptsWaiting = 0;
+    for (int i = 0; i <= 4; ++i) {
+        if (interruptPending(i, cpu) == 1) 
+            interruptsWaiting = 1;
+    }
+
+    //If there are no interrupts to service, return 0
+    if (interruptsWaiting == 0)
         return 0;
 
     //Save return address to stack
