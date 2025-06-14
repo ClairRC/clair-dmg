@@ -7,9 +7,16 @@
 #include "cpu.h"
 
 typedef enum {
-    INTERRUPT_TIMER
+    INTERRUPT_VBLANK = 0,
+    INTERRUPT_LCD = 1,
+    INTERRUPT_TIMER = 2,
+    INTERRUPT_SERIAL = 3,
+    INTERRUPT_JOYPAD = 4
 } Interrupt;
 
-void requestInterrupt(Interrupt, Memory*);
+int serviceInterrupt(CPU*);
+int interruptPending(Interrupt, CPU*);
+void requestInterrupt(Interrupt, CPU*);
+void clearInterrupt(Interrupt, CPU*);
 
 #endif

@@ -78,7 +78,7 @@ void update_timer_registers(EmulatorSystem* system) {
             //If TIMA gets written to, the overflow gets ignored
             if (system->memory->io[0x05] == 0) {
                 system->system_clock->tima_overflow_buffer = 1;
-                requestInterrupt(INTERRUPT_TIMER, system->memory);
+                requestInterrupt(INTERRUPT_TIMER, system->cpu);
                 system->memory->io[0x05] = system->memory->io[0x06]; //Resest TIMA to TMA
             }
         }
