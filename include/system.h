@@ -15,13 +15,22 @@
 //update them in relation to the emulator state as a whole, if that makes sense... Again I'm mostly thinking of timing.
 
 typedef struct {
+    //Timer Stuff (in t-cycles)
+    uint16_t system_time; //System timer (~4MHz)
+    uint32_t frame_time; //Total time elapsed this frame
+    uint16_t delta_time; //Number of cycles since last update (I think this is always time last instruction took)
+
+    uint8_t prev_tac_bit; //Stores what the last Timer Control bit was for updating TIMA
+    uint8_t prev_tma_val; //Stores previous M-Cycle's TMA value for TIMA overflow
+
+    uint8_t tima_overflow; //Flag to check whether TIMA overflowed
+    uint8_t tima_overflow_buffer; //Flag to check if TIMA overflowed 2 cycles ago for TIMA updates
+} SystemClock;
+
+typedef struct {
     Memory* memory;
     CPU* cpu;
-
-    //Timer Stuff (in t-cycles)
-    emu_time elapsed_time; //Total time elapsed since loading ROM
-    emu_time frame_time; //Total time elapsed this frame
-    emu_time delta_time; //Number of cycles since last update (I think this is always time last instruction took)
+    SystemClock* system_clock;
 } EmulatorSystem;
 
 //Initializes system.

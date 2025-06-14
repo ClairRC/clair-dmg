@@ -2,15 +2,14 @@
 #define HARDWARE_DEF_H
 //Defines enums that are used throughout the emulator
 
+#include <stdint.h>
+
 //CPU Flags (stored in F register)
 //ie. FLAG_ZERO = 1000 0000 because most significant digit is zero flag
 #define FLAG_ZERO (1<<7)
 #define FLAG_SUB (1<<6)
 #define FLAG_HALFCARRY (1<<5)
 #define FLAG_CARRY (1<<4)
-
-//Alias for emulator time for timing purposes (in t-cycles)
-typedef unsigned long emu_time;
 
 //Register enums to make sorting through all the
 //different opcodes a LITTLE less annoying
