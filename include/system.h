@@ -36,6 +36,6 @@ typedef struct {
 //Initializes system.
 //Only takes memory pointer since memory is the "indepenent" piece of the system 
 //that everything else uses
-EmulatorSystem* system_init(Memory*); //TODO: Implement
+EmulatorSystem* system_init(Memory*);
 
 #endif 

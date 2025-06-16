@@ -38,7 +38,7 @@ typedef struct {
     Memory* memory;
 } CPU;
 
-CPU* cpu_init(void);
+CPU* cpu_init(Memory*);
 void cpu_destroy(CPU*);
 uint16_t getRegisterValue16(CPU*, Registers);
 uint8_t getRegisterValue8(CPU*, Registers);

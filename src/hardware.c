@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "hardware.h"
 #include "interrupt_handler.h"
 
@@ -5,43 +6,66 @@
 #define GET_BIT(num, bit) ((num) >> (bit)) & 0x1
 
 
+/*
+* TODO:
+* Because cycle timing is pretty important to having the correct writes here, I'm not
+* 100% sure the accuracy of this entire module. Since the hardware gets updated
+* after the instructions get exectued, then particularly writes that target
+* specific addresses COULD throw things off. Additionally, it MIGHT cause DMA transfer
+* to begin 1-2 M-cycles early. I am simply not sure, soo uhh I will test this once
+* I have a working instruction loop and can run the test roms and see if theres any
+* major issues here...
+*
+* I could defer timing for things like DMA transfer, and delay my writes if
+* they get set to a timing register, aaand I'll consider that if it causes issues...
+* I suspect that very few games rely on EXACT timings for these things, and as long as I get
+* hblank and vblank interrupts correct, then the rest should be rarely buggy at worst.
+* Especially given that memory access by the CPU is restricted during DMA access anyway.
+*/
+
 //Updates system time and other hardware states based on time passed
-void update_hardware(EmulatorSystem* system, uint16_t delta_time) {
+void sync_hardware(EmulatorSystem* system, uint16_t delta_time) {
     //I think that having this here is good because it makes it so that 
     //updating time passed ALWAYS accounts for specific hardware timing, which is
     //how it works in reality. Plus, it means the instruciton loop should only ever
     //update hardware atomically, which is also accurate to real behavior
 
-    //If DIV was written to, reset system clock
-    if (system->memory->io[0x04] == 0x0)
-        system->system_clock = 0x0;
-
     system->system_clock->delta_time = delta_time; //Update delta time
 
-    update_timer_registers(system);
+    update_timer_registers(system); //Update timer registers
+    update_dma_transfer(system);
 
     //Update system clock after hardware has been updated
     system->system_clock->system_time += delta_time;
     system->system_clock->frame_time += delta_time;
+
+    //Reset system clock if it was written to
+    if (system->memory->div_reset)
+        system->system_clock->system_time = 0;
+
+    if (system->system_clock->frame_time >= 70224) {
+        system->system_clock->frame_time = 0;
+        //This request should be done by the PPU normally, but
+        //I am keeping it for testing for now...
+        requestInterrupt(INTERRUPT_VBLANK, system->cpu);
+
+        RegisterFile r = system->cpu->registers;
+
+        //Print CPU data.. Just testing for now!
+        printf("CPU STATE:\n"
+                "A REGISTER: %d\tF REGISTER: %d\n"
+                "B REGISTER: %d\tC REGISTER: %d\n"
+                "D REGISTER: %d\tE REGISTER: %d\n"
+                "H REGISTER: %d\tL REGISTER: %d\n"
+                "SP: %d\n"
+                "PC: %d\n\n\n", 
+                r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc);
+    }
 }
 
 //Takes emulator system pointer
 void update_timer_registers(EmulatorSystem* system) {
-    /*
-    * This system is kind of weird, but basically the way
-    * This works is everything here gets updated before instruction of the cycle
-    * So over the course of 3 M-cycles,
-    * Update DIV each time 
-    * Check if TIMA overflowed 2 cycles ago (writes during the previous cycle would be ignored)
-    * Check if TIMA overflowed LAST cycle (overflow ignored if so)
-    * If TIMA overflowed last cycle (and was not written to), set flag and request interrupt
-    * Check if TIMA overflows THIS cycle (sets flags and resets TIMA to 0)
-    *
-    * This also keeps track of previous TAC bit to check if TIMA gets updated
-    * since it gets updated on a falling edge (regardless of writes/timer reset).
-    */
-
-    uint16_t start_time = system->system_clock->system_time;
+    uint16_t start_time = system->system_clock->system_time - system->system_clock->delta_time;
 
     //i+=4 because system time never gets desynced from m-cycles, so this just
     //reduces the amount of iterations by a factor of 4.
@@ -98,4 +122,97 @@ void update_timer_registers(EmulatorSystem* system) {
         //Update previous TAC bit value
         system->system_clock->prev_tac_bit = tac_bit;
     }
+}
+
+//Updates DMA, which writes to memory
+void update_dma_transfer(EmulatorSystem* system) {
+    //If DMA is not active, which is usually true, return immediately
+    if (!system->memory->dma_active)
+        return;
+
+    //Above I did i+=4 because system time should never desync from m-cycles, 
+    //and I probably could do something similar for DMA, but then I have to do the cycles
+    //in terms of machine cycles, and I'd rather just stay consistent...
+    //If this ends up being a performance bottle neck, then I'll change it....
+    
+    for (int i = 0; i < system->system_clock->delta_time; ++i) {
+        //If remaining cycles is 0 (DMA transfer just finished), reset it and exit
+        if (system->memory->remaining_dma_cycles == 0) {
+            system->memory->remaining_dma_cycles = 640;
+            system->memory->dma_active = 0;
+            break;
+        }        
+
+        //DMA transfer transfers from 0xXX00-0xXX9F to 0xFE00 to 0xFE9F
+        //Writes happen on m-cycles, so we can only check this for modulo 4
+        uint16_t remaining_cycles = system->memory->remaining_dma_cycles;
+        if (remaining_cycles % 4 == 0) {
+            uint16_t src_address = ((system->memory->dma_source << 8) | 0x9F) - remaining_cycles;
+            uint16_t dest_address = 0xFE9F - remaining_cycles;
+
+            uint8_t val = mem_read(system->memory, src_address, DMA_ACCESS);
+            mem_write(system->memory, dest_address, val, DMA_ACCESS);
+        }
+
+        --system->memory->remaining_dma_cycles;
+    }
+}
+
+//Requests STAT interrupt if met. Also updates LYC
+void update_stat_register(EmulatorSystem* system) {
+    //Okay I'm going to be SO honest because this is getting hard to keep track of the weird things..
+    //I'm not sure if updating this should be HERE or should be LATER. It IS a hardware register, it needs
+    //to be checked after each instruction like other hardware registers like the timing registers.... I dunno where else it'd go
+    //I once again am unsure if this will be desynced by 1-2 m-cycles..
+
+    //I did not include this in a loop because whether the interrupt is set or not
+    //only matters when interrupts are serviced, which is after hardware udpates..
+    //Also, lyc DOES get checked regularly, but since no memory changes happen here except
+    //immediately after an instruction, it shouldn't change anything(?)
+
+    //If you can't tell this is the point where all of the information is starting to get
+    //so specific that keeping track of the timing quirks and individual little things is getting VERY difficult
+    uint8_t current_stat_status = 0; //Start unset
+    uint8_t* current_stat_address = &system->memory->io[0x41]; //Current stat value
+    //When LY and LYC (0xFF44 and 0xFF45) are equal, it sets bit 2 of STAT
+    uint8_t lyc = system->memory->io[0x44] == system->memory->io[0x45];
+    PPU_Mode ppu_mode = system->memory->current_ppu_mode;
+
+    if (lyc)
+        *current_stat_address |= (1 << 2);
+
+    //Updates PPU mode as well?
+    //Since PPU updates this, this will probably just make sure that the STAT register
+    //reflects the correct value, but the enum in the memory module will still be the
+    //way it gets checked for certain access things
+
+    //0s bottom 2 bits for STAT and merges with current PPU mode
+    *current_stat_address = (*current_stat_address & 0xFC) | ppu_mode;
+
+    //Check each bit for its condition. Only 1 needs to be true to trigger a STAT interrupt
+
+    //Bit 3 - PPU mode 0
+    if ((GET_BIT(*current_stat_address, 3)) && ppu_mode == PPU_MODE_0)
+        current_stat_status = 1;
+
+    //Bit 4 - PPU mode 1
+    if ((GET_BIT(*current_stat_address, 4)) && ppu_mode == PPU_MODE_1)
+        current_stat_status = 1;
+
+    //Bit 5 - PPU mode 2
+    if ((GET_BIT(*current_stat_address, 5)) && ppu_mode == PPU_MODE_2)
+        current_stat_status = 1;
+
+    //Bit 6 - LY = LYC
+    if ((GET_BIT(*current_stat_address, 6)) && lyc)
+        current_stat_status = 1;
+
+    uint8_t prev_stat_status = system->memory->stat_interrupt_state;
+
+    //This gets set on a rising edge, which is why we store the previous state
+    if (prev_stat_status == 0 && current_stat_status == 1)
+        requestInterrupt(INTERRUPT_LCD, system->cpu);
+
+    //Update stat interrupt
+    system->memory->stat_interrupt_state = current_stat_status;
 }

@@ -1,8 +1,8 @@
-#include <stdio.h>
-#include "logging.h"
+#include "init.h"
 
+//Simply initializes current emulator for now..
 int main() {
-    printError("Hewwo Wowld :3");
+    int success = emulator_init();
 
-    return 0;
+    return success;
 }

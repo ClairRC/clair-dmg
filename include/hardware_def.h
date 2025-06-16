@@ -58,10 +58,10 @@ typedef enum {
 //restrict CPU access during certain modes. It also allows the PPU
 //to set the flag for when the mode changes
 typedef enum {
-    PPU_MODE_0,
-    PPU_MODE_1,
-    PPU_MODE_2,
-    PPU_MODE_3
+    PPU_MODE_0 = 0,
+    PPU_MODE_1 = 1,
+    PPU_MODE_2 = 2,
+    PPU_MODE_3 = 3
 } PPU_Mode;
 
 //Specifices the specific base MBC (Memory Banking Control) type

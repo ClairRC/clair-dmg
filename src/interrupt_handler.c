@@ -1,4 +1,5 @@
 #include "interrupt_handler.h"
+#include "hardware_def.h"
 
 //Services interrupt
 int serviceInterrupt(CPU* cpu) {
@@ -51,6 +52,7 @@ int serviceInterrupt(CPU* cpu) {
     }
 
     clearFlag(cpu, IME); //Reset IME
+    clearFlag(cpu, IS_HALTED); //Unhalts CPU if it was halteds
     cpu->registers.pc = target_address; //Jumps to address
 
     //20 t-cycles for this whole process

@@ -7,7 +7,7 @@
 //Initializes CPU and its components.
 //There should only ever be one of these
 //TODO: Make init function work better with memory as PPU and DMA share same memory
-CPU* cpu_init() {
+CPU* cpu_init(Memory* memory) {
     RegisterFile rf = {0};
     CPUState cpu_state = {0};
     CPU* cpu = (CPU*)malloc(sizeof(CPU));
@@ -20,7 +20,7 @@ CPU* cpu_init() {
 
     cpu->registers = rf;
     cpu->state = cpu_state;
-    cpu->memory = NULL; //TODO: Initialize this
+    cpu->memory = memory;
 
     return cpu;
 }

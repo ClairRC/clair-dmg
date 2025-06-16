@@ -40,6 +40,12 @@ typedef struct{
     PPU_Mode current_ppu_mode;
     int dma_active;
     uint16_t remaining_dma_cycles;
+    uint8_t dma_source;
+    uint8_t div_reset; //A write to div resets system clock
+    //Holds what the previous stat interrupt value is... 
+    //(this is here because memory is what updates stat, this just 
+    //basically holds the previous value as well for interrupt servicing)
+    uint8_t stat_interrupt_state;
 } Memory;
 
 //Initialize memory

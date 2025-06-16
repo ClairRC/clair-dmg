@@ -26,7 +26,7 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
     mbc->mbc_type = getMBCType(type_byte);
 
     //Games bigger than 1MiB and MBC1 wire this differently for more ROM space
-    if (mbc->mbc_type == MBC_1 && rom_byte >= 0x5)
+    if (mbc->mbc_type == MBC_1 && rom_byte < 0x5)
         mbc->has_mode_switch = 1;
 
     //Battery MBCs

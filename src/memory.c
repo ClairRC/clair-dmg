@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "memory.h"
 #include "hardware_def.h"
 #include "logging.h"
@@ -46,7 +47,9 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
     //Other flags
     mem->current_ppu_mode = 0;
     mem->dma_active = 0;
-    mem->remaining_dma_cycles = 0;
+    mem->remaining_dma_cycles = 640;
+    mem->div_reset = 0;
+    mem->stat_interrupt_state = 0;
 
     return mem;
 }
@@ -136,10 +139,16 @@ int mem_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor)
     if (mem->mbc_chip->mbc_type == MBC_2 && address >= 0xA000 && address <= 0xBFFF)
         new_val &= 0x0F; //Sets upper nibble to 0000, preserves lower (accurate behavior)
 
+    //Edge case where 0xFF46 is written to, causing DMA transfer
+    if (address == 0x0FF46) {
+        mem->dma_active = 1;
+        mem->remaining_dma_cycles = 640;
+        mem->dma_source = new_val;
+    }
 
     //Edge case where writing to DIV resets it (and the system clock)
     if (address == 0xFF04)
-        new_val = 0x0;
+        mem->div_reset = 1;
 
     *mem_ptr = new_val;
 
