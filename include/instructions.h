@@ -1,6 +1,8 @@
 #ifndef INSTRUCTIONS_H
 #define INSTRUCTIONS_H
 
+#include <stdio.h>
+
 #include "cpu.h"
 #include <stdint.h>
 #include <stdlib.h>

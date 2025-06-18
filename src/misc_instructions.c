@@ -1,4 +1,5 @@
 #include "instructions.h"
+#include "interrupt_handler.h"
 
 //Complements accumulator register
 int cpl(CPU* cpu, Instruction* instruction) {
@@ -49,16 +50,17 @@ int daa(CPU* cpu, Instruction* instruction) {
     */
     //Get accumulator value
     uint8_t val = getRegisterValue8(cpu, REG_A);
+    uint8_t correction = val;
     
     //Adjust the value
     if (!flagIsSet(cpu, SUB)) {
         //If addition, check half carry and lower nibble > 0x9
         if ((val & 0xF) > 0x9 || flagIsSet(cpu, HALFCARRY))
-            val += 0x06;
+            correction += 0x06;
 
         //Check if upper nibble is over 9 now and adjust if so
         if (val > 0x99 || flagIsSet(cpu, CARRY)) {
-            val += 0x60;
+            correction += 0x60;
             setFlag(cpu, CARRY);
         }
         else {
@@ -68,18 +70,18 @@ int daa(CPU* cpu, Instruction* instruction) {
     else {
         //If last operation was subtraction, adjust based on half-carry
         if (flagIsSet(cpu, HALFCARRY))
-            val -= 0x06;
+            correction -= 0x06;
 
         if (flagIsSet(cpu, CARRY))
-            val -= 0x60;
+            correction -= 0x60;
     }
 
     //Store value
-    setRegisterValue(cpu, REG_A, val);
+    setRegisterValue(cpu, REG_A, correction);
 
     //Update flags
     clearFlag(cpu, HALFCARRY);
-    updateFlag(cpu, ZERO, CHECK_ZERO_8(val));
+    updateFlag(cpu, ZERO, CHECK_ZERO_8(correction));
 
     //4 t-cycles
     return 4;
@@ -112,10 +114,24 @@ int halt(CPU* cpu, Instruction* instruction) {
     * This is also a very strange instruction.
     * Depending on the different interrupt flags, it either halts, does not halt,
     * fetches the next instruction twice, or just continues like normal.
-    * The instruction loop will handle the specifics, but this will just set the halted flag and return.
     */
 
-    setFlag(cpu, IS_HALTED);
+    //Check if interrupt is pending
+    uint8_t interrupt_pending = anyInterruptPending(cpu);
+    uint8_t ime = cpu->state.IME;
+
+    //If IME is set, HALT is normal
+    if (ime)
+        setFlag(cpu, IS_HALTED);
+    else {
+        //If IME is 0 and there are no interrupts, HALT is normal.
+        //This means that before next instruction, HALT gets cleared
+        if (!interrupt_pending)
+            setFlag(cpu, IS_HALTED);        
+        //BUT!! If IME is 0 and there ARE interrupts, HALT bug is triggered
+        else
+            setFlag(cpu, HALT_BUG);
+    }
 
     //4 t-cycles
     return 4;

@@ -3,8 +3,12 @@
 #include "init.h" 
 #include "logging.h"
 #include "fe_de_ex.h"
+#include "instructions.h"
+#include "hardware_registers.h"
 
 int emulator_init() {
+    init_opcodes();
+    init_hw_registers();
     Memory* mem = load_rom_data();
 
     if (mem == NULL)
@@ -72,12 +76,12 @@ Memory* load_rom_data() {
     long num_bytes = ftell(file_ptr);
     rewind(file_ptr);
 
-    /*if (!fread(mem->rom_x, 1, num_bytes, file_ptr)) {
+    if (!fread(mem->rom_x, 1, num_bytes, file_ptr)) {
         printError("ROM file too small!");
         free(mem);
         fclose(file_ptr);
         return NULL;
-    }*/
+    }
 
     fclose(file_ptr);
 
@@ -86,8 +90,18 @@ Memory* load_rom_data() {
 }
 
 int init_cpu_vals(EmulatorSystem* system) {
-    system->cpu->registers.pc = 0x100; //Skip boot ROM
+    system->cpu->registers.pc = 0xFF; //Skip boot ROM
     system->cpu->registers.sp = 0xFFFE; //Set stack pointer....
+
+    system->cpu->registers.A = 0x01;
+    system->cpu->registers.F = 0xB0;
+    system->cpu->registers.B = 0x00;
+    system->cpu->registers.C = 0x13;
+    system->cpu->registers.D = 0x00;
+    system->cpu->registers.E = 0xD8;
+    system->cpu->registers.H = 0x01;
+    system->cpu->registers.L = 0x4D;
+    system->cpu->registers.A = 0x01;
 
     return 0;
 }

@@ -2,8 +2,6 @@
 #define HARDWARE_DEF_H
 //Defines enums that are used throughout the emulator
 
-#include <stdint.h>
-
 //CPU Flags (stored in F register)
 //ie. FLAG_ZERO = 1000 0000 because most significant digit is zero flag
 #define FLAG_ZERO (1<<7)

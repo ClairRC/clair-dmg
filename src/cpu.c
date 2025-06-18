@@ -159,7 +159,7 @@ int setRegisterValue(CPU* cpu, Registers reg, uint16_t value) {
             cpu->registers.E = (uint8_t)value;
             break;
         case REG_F:
-            cpu->registers.F = (uint8_t)value;
+            cpu->registers.F = (uint8_t)value & 0xF0; //Lower nibble always 0
             break;
         case REG_H:
             cpu->registers.H = (uint8_t)value;
@@ -179,7 +179,7 @@ int setRegisterValue(CPU* cpu, Registers reg, uint16_t value) {
         //I don't THINK AF is ever treated this way, but I'm keeping this just in case
         case REG_AF:
             cpu->registers.A = (uint8_t)(value>>8);
-            cpu->registers.F = (uint8_t)value;
+            cpu->registers.F = (uint8_t)value & 0xF0;
             break;
         case REG_BC:
             cpu->registers.B = (uint8_t)(value>>8);

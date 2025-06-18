@@ -41,8 +41,8 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
     mem->rom_x = rom_x;
     mem->exram_x = exram_x;
 
-    //WRAM bank pointer. Always 0 on DMG
-    mem->current_wram_bank = 0;
+    //WRAM bank pointer. Always 1 on DMG
+    mem->current_wram_bank = 1;
 
     //Other flags
     mem->current_ppu_mode = 0;
@@ -103,6 +103,10 @@ uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
     //Edge case where MBC2 only accesses lower nibble of exram
     if (mem->mbc_chip->mbc_type == MBC_2 && address >= 0xA000 && address <= 0xBFFF)
         result |= 0xF0; //Sets upper nibble to 1111, preserves lower (accurate behavior)
+
+    //TODO! REMOVE THIS! ONLY FOR TESTING!
+    if (address == 0xFF44)
+        result = 0x90;
 
     //Return value
     return result;
