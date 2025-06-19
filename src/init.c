@@ -90,7 +90,7 @@ Memory* load_rom_data() {
 }
 
 int init_cpu_vals(EmulatorSystem* system) {
-    system->cpu->registers.pc = 0xFF; //Skip boot ROM
+    system->cpu->registers.pc = 0x100; //Skip boot ROM
     system->cpu->registers.sp = 0xFFFE; //Set stack pointer....
 
     system->cpu->registers.A = 0x01;

@@ -35,6 +35,8 @@ void sync_hardware(EmulatorSystem* system, uint16_t delta_time) {
     update_dma_transfer(system);
     update_stat_register(system);
 
+    update_ppu(system->ppu, delta_time);
+
     //Update system clock after hardware has been updated
     system->system_clock->system_time += delta_time;
     system->system_clock->frame_time += delta_time;
@@ -47,7 +49,7 @@ void sync_hardware(EmulatorSystem* system, uint16_t delta_time) {
         system->system_clock->frame_time = 0;
         //This request should be done by the PPU normally, but
         //I am keeping it for testing for now...
-        requestInterrupt(INTERRUPT_VBLANK, system->cpu);
+        requestInterrupt(INTERRUPT_VBLANK, system->memory);
     }
 }
 
@@ -59,17 +61,6 @@ void update_timer_registers(EmulatorSystem* system) {
     //reduces the amount of iterations by a factor of 4.
     //TODO: Check if this would mess things up for mid-instruction updates (if they would ever be necessary?)
     for (int i = 0; i < system->system_clock->delta_time; i+=4) {
-        //Just here for testing...
-        //Increment LY manually to avoid infinite loops
-        //TODO: REMOVE THIS
-        if ((start_time + i) % 456 == 0) {
-            ++system->memory->io[0x44];
-
-            if (system->memory->io[0x44] >= 153) {
-                system->memory->io[0x44] = 0;
-            }
-        }
-
         //Set DIV register (upper 8 bits of system time)
         uint8_t div = (uint8_t)((start_time + i) >> 8);
         system->memory->io[0x04] = div; //0xFF04 = DIV
@@ -101,7 +92,7 @@ void update_timer_registers(EmulatorSystem* system) {
             //If TIMA gets written to, the overflow gets ignored
             if (system->memory->io[0x05] == 0) {
                 system->system_clock->tima_overflow_buffer = 1;
-                requestInterrupt(INTERRUPT_TIMER, system->cpu);
+                requestInterrupt(INTERRUPT_TIMER, system->memory);
                 system->memory->io[0x05] = system->memory->io[0x06]; //Resest TIMA to TMA
             }
         }
@@ -210,7 +201,7 @@ void update_stat_register(EmulatorSystem* system) {
 
     //This gets set on a rising edge, which is why we store the previous state
     if (prev_stat_status == 0 && current_stat_status == 1)
-        requestInterrupt(INTERRUPT_LCD, system->cpu);
+        requestInterrupt(INTERRUPT_LCD, system->memory);
 
     //Update stat interrupt
     system->memory->stat_interrupt_state = current_stat_status;

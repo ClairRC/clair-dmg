@@ -15,9 +15,9 @@ typedef enum {
 } Interrupt;
 
 int serviceInterrupt(CPU*);
-int interruptPending(Interrupt, CPU*);
-int anyInterruptPending(CPU*);
-void requestInterrupt(Interrupt, CPU*);
-void clearInterrupt(Interrupt, CPU*);
+int interruptPending(Interrupt, Memory*);
+int anyInterruptPending(Memory*);
+void requestInterrupt(Interrupt, Memory*);
+void clearInterrupt(Interrupt, Memory*);
 
 #endif

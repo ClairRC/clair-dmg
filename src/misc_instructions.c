@@ -117,7 +117,7 @@ int halt(CPU* cpu, Instruction* instruction) {
     */
 
     //Check if interrupt is pending
-    uint8_t interrupt_pending = anyInterruptPending(cpu);
+    uint8_t interrupt_pending = anyInterruptPending(cpu->memory);
     uint8_t ime = cpu->state.IME;
 
     //If IME is set, HALT is normal

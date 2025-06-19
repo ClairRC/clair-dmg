@@ -12,7 +12,7 @@ int fe_de_ex(EmulatorSystem* system) {
         uint16_t delta_time = 0;
 
         //If there are interrupts pending...
-        if (anyInterruptPending(cpu)) {
+        if (anyInterruptPending(cpu->memory)) {
             clearFlag(cpu, IS_HALTED); //Unhalt CPU if halted
 
             //If IME is enabled, service the interrupts...
@@ -33,18 +33,19 @@ int fe_de_ex(EmulatorSystem* system) {
         //Fetch intsruction
         uint8_t opcode = mem_read(mem, cpu->registers.pc++, CPU_ACCESS);
 
+        //HALT bug results in the PC failing to increment, so it will run the following
+        //instruction twice. HALT simply stops CPU execution, so in either case PC is decremented
+        if (flagIsSet(cpu, IS_HALTED) || flagIsSet(cpu, HALT_BUG))
+            --cpu->registers.pc;
+
         //If we are halted, the CPU does nothing here, which effectively is a NOP and PC stays the same
         //So to simulate this I will just manually change the opcode to be a NOP
-        //and move the PC back down
         if (flagIsSet(cpu, IS_HALTED)) {
             opcode = 0x00;
-            --cpu->registers.pc;
         }
 
-        //If HALT bug is active, it'll reread the instruction, so decrement sp
-        //PC literally just fails to increment with halt bug, so this is accurate behavior
+        //If HALT bug is active, it'll reread the instruction once, so I disable the flag here
         if (flagIsSet(cpu, HALT_BUG)) {
-            --cpu->registers.pc;
             clearFlag(cpu, HALT_BUG);
         }
 
@@ -66,6 +67,11 @@ int fe_de_ex(EmulatorSystem* system) {
         //Update other hardware state...
         sync_hardware(system, delta_time);
         delta_time = 0;
+
+        RegisterFile r = cpu->registers;
+        //printf("A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X\n", 
+        //    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc
+        //);
     }
 
     return 0;

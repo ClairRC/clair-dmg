@@ -104,10 +104,6 @@ uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
     if (mem->mbc_chip->mbc_type == MBC_2 && address >= 0xA000 && address <= 0xBFFF)
         result |= 0xF0; //Sets upper nibble to 1111, preserves lower (accurate behavior)
 
-    //TODO! REMOVE THIS! ONLY FOR TESTING!
-    if (address == 0xFF44)
-        result = 0x90;
-
     //Return value
     return result;
 }

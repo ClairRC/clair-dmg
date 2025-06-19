@@ -18,6 +18,9 @@ EmulatorSystem* system_init(Memory* memory) {
         return NULL;
     }
 
+    //TODO: Make tihs better.
+    PPU* ppu = ppu_init(memory);
+
     SystemClock* sys_clock = (SystemClock*)malloc(sizeof(SystemClock));
 
     if (sys_clock == NULL) {
@@ -38,6 +41,7 @@ EmulatorSystem* system_init(Memory* memory) {
 
     system->memory = memory;
     system->cpu = cpu;
+    system->ppu = ppu;
     system->system_clock = sys_clock;
 
     return system;

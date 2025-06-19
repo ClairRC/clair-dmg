@@ -3,6 +3,7 @@
 
 #include "memory.h" 
 #include "cpu.h"
+#include "ppu.h"
 
 //Holds global system information, including system time and pointers to individual pieces
 //The point of this is to have like a "central" struct
@@ -30,6 +31,7 @@ typedef struct {
 typedef struct {
     Memory* memory;
     CPU* cpu;
+    PPU* ppu;
     SystemClock* system_clock;
 } EmulatorSystem;
 
