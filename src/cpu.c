@@ -331,6 +331,18 @@ int flagIsSet(CPU* cpu, Flags flag) {
             if (cpu->state.IME == 0)
                 flagState = 0;
             break;
+        case ENABLE_IME:
+            if (cpu->state.enableIME == 0)
+                flagState = 0;
+            break;
+        case IS_HALTED:
+            if (cpu->state.isHalted == 0)
+                flagState = 0;
+            break;
+        case HALT_BUG:
+            if (cpu->state.halt_bug == 0)
+                flagState = 0;
+            break;
         default:
             flagState = 0;
             break;

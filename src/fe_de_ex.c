@@ -8,6 +8,8 @@ int fe_de_ex(EmulatorSystem* system) {
     CPU* cpu = system->cpu;
     Memory* mem = system->memory;
 
+    FILE* ptr = fopen("C:/Users/Claire/Desktop/logfile.txt", "w");
+
     while (1) {
         uint16_t delta_time = 0;
 
@@ -38,15 +40,15 @@ int fe_de_ex(EmulatorSystem* system) {
         if (flagIsSet(cpu, IS_HALTED) || flagIsSet(cpu, HALT_BUG))
             --cpu->registers.pc;
 
+        //If HALT bug is active, it'll reread the instruction once, so I disable the flag here
+        if (flagIsSet(cpu, HALT_BUG)) {
+            clearFlag(cpu, HALT_BUG);
+        }
+
         //If we are halted, the CPU does nothing here, which effectively is a NOP and PC stays the same
         //So to simulate this I will just manually change the opcode to be a NOP
         if (flagIsSet(cpu, IS_HALTED)) {
             opcode = 0x00;
-        }
-
-        //If HALT bug is active, it'll reread the instruction once, so I disable the flag here
-        if (flagIsSet(cpu, HALT_BUG)) {
-            clearFlag(cpu, HALT_BUG);
         }
 
         //Decode instruction
@@ -69,10 +71,13 @@ int fe_de_ex(EmulatorSystem* system) {
         delta_time = 0;
 
         RegisterFile r = cpu->registers;
-        //printf("A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X\n", 
-        //    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc
-        //);
+        if (!cpu->state.isHalted) {
+            fprintf(ptr, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
+                r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->memory, r.pc, PPU_ACCESS), mem_read(cpu->memory, r.pc + 1, PPU_ACCESS), mem_read(cpu->memory, r.pc + 2, PPU_ACCESS), mem_read(cpu->memory, r.pc + 3, PPU_ACCESS)
+            );
+        }
+        
     }
-
+    fclose(ptr);
     return 0;
 }

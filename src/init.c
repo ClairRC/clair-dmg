@@ -6,6 +6,7 @@
 #include "instructions.h"
 #include "hardware_registers.h"
 
+
 int emulator_init() {
     init_opcodes();
     init_hw_registers();
@@ -29,7 +30,7 @@ int emulator_init() {
 
 Memory* load_rom_data() {
     //For now I will hardcode the file path....
-    char* file_path = "test.gb"; 
+    char* file_path = "C:/Users/Claire/Desktop/a.gb"; 
     FILE* file_ptr = fopen(file_path, "rb");
 
     //Fail to open file
@@ -90,7 +91,7 @@ Memory* load_rom_data() {
 }
 
 int init_cpu_vals(EmulatorSystem* system) {
-    system->cpu->registers.pc = 0x100; //Skip boot ROM
+    system->cpu->registers.pc = 0xFF; //Skip boot ROM
     system->cpu->registers.sp = 0xFFFE; //Set stack pointer....
 
     system->cpu->registers.A = 0x01;
@@ -102,6 +103,8 @@ int init_cpu_vals(EmulatorSystem* system) {
     system->cpu->registers.H = 0x01;
     system->cpu->registers.L = 0x4D;
     system->cpu->registers.A = 0x01;
+
+    system->memory->io[0x50] = 0x1;
 
     return 0;
 }

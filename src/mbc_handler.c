@@ -51,7 +51,7 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
     else
         mbc->current_rom_bank = 0;
     mbc->current_exram_bank = 0;
-    mbc->exram_enabled = 0; //Specifies if this is enabled
+    mbc->exram_enabled = 0; //Specifies if this is enabled.
 
     return mbc;
 }

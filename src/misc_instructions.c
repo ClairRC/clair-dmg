@@ -127,9 +127,9 @@ int halt(CPU* cpu, Instruction* instruction) {
         //If IME is 0 and there are no interrupts, HALT is normal.
         //This means that before next instruction, HALT gets cleared
         if (!interrupt_pending)
-            setFlag(cpu, IS_HALTED);        
+            setFlag(cpu, IS_HALTED);
         //BUT!! If IME is 0 and there ARE interrupts, HALT bug is triggered
-        else
+        else 
             setFlag(cpu, HALT_BUG);
     }
 

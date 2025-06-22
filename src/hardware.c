@@ -4,7 +4,6 @@
 //Gets value of specific bit (starting at 0)
 #define GET_BIT(num, bit) ((num) >> (bit)) & 0x1
 
-
 /*
 * TODO:
 * Because cycle timing is pretty important to having the correct writes here, I'm not
@@ -33,7 +32,6 @@ void sync_hardware(EmulatorSystem* system, uint16_t delta_time) {
 
     update_timer_registers(system); //Update timer registers
     update_dma_transfer(system);
-    update_stat_register(system);
 
     update_ppu(system->ppu, delta_time);
 
@@ -45,12 +43,6 @@ void sync_hardware(EmulatorSystem* system, uint16_t delta_time) {
     if (system->memory->div_reset)
         system->system_clock->system_time = 0;
 
-    if (system->system_clock->frame_time >= 70224) {
-        system->system_clock->frame_time = 0;
-        //This request should be done by the PPU normally, but
-        //I am keeping it for testing for now...
-        requestInterrupt(INTERRUPT_VBLANK, system->memory);
-    }
 }
 
 //Takes emulator system pointer
@@ -146,63 +138,4 @@ void update_dma_transfer(EmulatorSystem* system) {
 
         --system->memory->remaining_dma_cycles;
     }
-}
-
-//Requests STAT interrupt if met. Also updates LYC
-void update_stat_register(EmulatorSystem* system) {
-    //Okay I'm going to be SO honest because this is getting hard to keep track of the weird things..
-    //I'm not sure if updating this should be HERE or should be LATER. It IS a hardware register, it needs
-    //to be checked after each instruction like other hardware registers like the timing registers.... I dunno where else it'd go
-    //I once again am unsure if this will be desynced by 1-2 m-cycles..
-
-    //I did not include this in a loop because whether the interrupt is set or not
-    //only matters when interrupts are serviced, which is after hardware udpates..
-    //Also, lyc DOES get checked regularly, but since no memory changes happen here except
-    //immediately after an instruction, it shouldn't change anything(?)
-
-    //If you can't tell this is the point where all of the information is starting to get
-    //so specific that keeping track of the timing quirks and individual little things is getting VERY difficult
-    uint8_t current_stat_status = 0; //Start unset
-    uint8_t* current_stat_address = &system->memory->io[0x41]; //Current stat value
-    //When LY and LYC (0xFF44 and 0xFF45) are equal, it sets bit 2 of STAT
-    uint8_t lyc = system->memory->io[0x44] == system->memory->io[0x45];
-    PPU_Mode ppu_mode = system->memory->current_ppu_mode;
-
-    if (lyc)
-        *current_stat_address |= (1 << 2);
-
-    //Updates PPU mode as well?
-    //Since PPU updates this, this will probably just make sure that the STAT register
-    //reflects the correct value, but the enum in the memory module will still be the
-    //way it gets checked for certain access things
-
-    //0s bottom 2 bits for STAT and merges with current PPU mode
-    *current_stat_address = (*current_stat_address & 0xFC) | ppu_mode;
-
-    //Check each bit for its condition. Only 1 needs to be true to trigger a STAT interrupt
-
-    //Bit 3 - PPU mode 0
-    if ((GET_BIT(*current_stat_address, 3)) && ppu_mode == PPU_MODE_0)
-        current_stat_status = 1;
-
-    //Bit 4 - PPU mode 1
-    if ((GET_BIT(*current_stat_address, 4)) && ppu_mode == PPU_MODE_1)
-        current_stat_status = 1;
-
-    //Bit 5 - PPU mode 2
-    if ((GET_BIT(*current_stat_address, 5)) && ppu_mode == PPU_MODE_2)
-        current_stat_status = 1;
-
-    //Bit 6 - LY = LYC
-    if ((GET_BIT(*current_stat_address, 6)) && lyc)
-        current_stat_status = 1;
-
-    uint8_t prev_stat_status = system->memory->stat_interrupt_state;
-
-    //This gets set on a rising edge, which is why we store the previous state
-    if (prev_stat_status == 0 && current_stat_status == 1)
-        requestInterrupt(INTERRUPT_LCD, system->memory);
-
-    //Update stat interrupt
-    system->memory->stat_interrupt_state = current_stat_status;
 }

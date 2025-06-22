@@ -9,7 +9,6 @@
 
 void sync_hardware(EmulatorSystem*, uint16_t); //Updates system hardware given ticks passed
 void update_timer_registers(EmulatorSystem*);
-void update_dma_transfer(EmulatorSystem*);
-void update_stat_register(EmulatorSystem*); 
+void update_dma_transfer(EmulatorSystem*); 
 
 #endif 

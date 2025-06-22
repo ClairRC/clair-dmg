@@ -39,17 +39,17 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
     }
 
     mem->rom_x = rom_x;
-    mem->exram_x = exram_x;
+    mem->exram_x = mbc_chip->num_exram_banks == 0 ? NULL : exram_x; //If there are no RAM banks, this is NULL
 
     //WRAM bank pointer. Always 1 on DMG
     mem->current_wram_bank = 1;
 
     //Other flags
-    mem->current_ppu_mode = 0;
+    mem->current_ppu_mode = PPU_MODE_2;
+    mem->previous_ppu_mode = PPU_MODE_2;
     mem->dma_active = 0;
     mem->remaining_dma_cycles = 640;
     mem->div_reset = 0;
-    mem->stat_interrupt_state = 0;
 
     return mem;
 }
@@ -75,6 +75,10 @@ uint8_t* getMemPtr(Memory*, uint16_t, Accessor);
 
 //R/W Memory functions
 uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
+    //TODO: REMOVE!! TESTING ONLY!
+    if (address == 0xFF44)
+        return 0x90;
+
     uint8_t* mem_ptr = getMemPtr(mem, address, accessor);
 
     //Null pointer means memory is inaccessible
@@ -196,7 +200,7 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
     //VRAM bank 0/1
     //TODO: Add logic for VRAM_1 when implementing CGB
     else if(address >= 0x8000 && address <= 0x9FFF) {
-        if (checkNoMemAccess(mem, RANGE_VRAM, accessor)) {return NULL;}
+        if (checkNoMemAccess(mem, RANGE_VRAM, accessor)) { return NULL; }
         uint16_t index = address - 0x8000;
 
         return &(mem->vram_0[index]);
@@ -204,7 +208,7 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
 
     //EXRAM bank 0-NN
     else if(address >= 0xA000 && address <= 0xBFFF) {
-        if (mem->exram_x == NULL || checkNoMemAccess(mem, RANGE_EXRAM, accessor)) {return NULL;}
+        if (mem->exram_x == NULL || checkNoMemAccess(mem, RANGE_EXRAM, accessor)) { return NULL; }
         uint32_t index;
 
         //Index wraps around, but MBC2 is special because it only has 0x200 addresses
@@ -219,7 +223,7 @@ uint8_t* getMemPtr(Memory* mem, uint16_t address, Accessor accessor) {
 
     //WRAM bank 0
     else if(address >= 0xC000 && address <= 0xCFFF) {
-        if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL;}
+        if (checkNoMemAccess(mem, RANGE_WRAM, accessor)) {return NULL; }
         uint16_t index = address - 0xC000;
 
         return &(mem->wram_x[index]);
@@ -291,7 +295,8 @@ int checkNoMemAccess(Memory* mem, MemoryRange range, Accessor accessor) {
     //As far as I know, there is no restriction except for CPU access
     //This may be different on CGB
     //TODO: confirm that ^
-    if (accessor != CPU_ACCESS)
+
+    if (accessor != CPU_ACCESS || mem->current_ppu_mode == PPU_MODE_OFF)
         return 0;
 
     switch (range) {
@@ -302,13 +307,13 @@ int checkNoMemAccess(Memory* mem, MemoryRange range, Accessor accessor) {
 
         case RANGE_VRAM:
             //No access during DMA or PPU mode 3
-            return mem->dma_active 
+            return mem->dma_active
                 || mem->current_ppu_mode == PPU_MODE_3;
             break;
 
         case RANGE_EXRAM:
             //No access during DMA or when EXRAM is disabled by the MBC
-            return mem->dma_active || mem->mbc_chip->exram_enabled == 0;
+            return mem->dma_active || (mem->mbc_chip->exram_enabled == 0);
             break;
 
         case RANGE_WRAM:

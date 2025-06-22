@@ -4,5 +4,5 @@
 int main() {
     int success = emulator_init();
 
-    return success;
+    return 0;
 }
