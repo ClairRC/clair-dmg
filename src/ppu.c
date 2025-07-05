@@ -119,22 +119,7 @@ void store_object(PPU* ppu, uint16_t object_ba) {
 
     entry.flags = mem_read(ppu->memory, object_ba + 3, PPU_ACCESS); //Byte 3 is object flags
 
-    entry.obj_size = (ppu->memory->LCDC_LOCATION & OBJ_SIZE) ? 16 : 8; //if bit is set, objects are 8x16, if its clear they're 8x8
-
-    //If tiles are in 8x16 mode, the upper tile index is at tile_index & 0xFE
-    //and the upper tile index isat tile_index | 0x01
-
-    //If we are in 8x16 mode..
-    if (entry.obj_size == 16) {
-        //If we are in the lower tile...
-        if (ppu->memory->LY_LOCATION - obj_y >= 8) {
-            entry.tile_index |= 0x01; //Last bit is always 1
-            entry.y_pos += 8; //Adjust position for being lower tile
-        }
-        else {
-            entry.tile_index &= 0xFE; //Last bit is always 
-        }
-    }
+    //entry.obj_size = (ppu->memory->LCDC_LOCATION & OBJ_SIZE) ? 16 : 8; //if bit is set, objects are 8x16, if its clear they're 8x8
 
     //Finally, add the entry to the Object list for this scanline...
     ppu->scanline_obj[ppu->state.current_obj_index++] = entry;
@@ -144,23 +129,6 @@ void store_object(PPU* ppu, uint16_t object_ba) {
 //TODO: Rewrite this whole thing and the helper functions it calls
 void ppu_write_lcd(PPU* ppu, uint16_t mode_3_time) {
     uint8_t color_id = get_pixel_color_id(ppu, mode_3_time);
-
-    //Window
-
-    /*uint8_t color_index;
-    if (win_is_visible(ppu, mode_3_time)) {
-        if (ppu->state.window_ly_increment) {
-            ++ppu->state.window_ly;
-            ppu->state.window_ly_increment = 0;
-        }
-
-        color_index = get_win_color_index(ppu, mode_3_time);
-    }
-    else
-        color_index = 1; 
-
-
-    //uint8_t color_id = (ppu->memory->BGP_LOCATION >> (2 * color_index)) & 0x3;*/
 
     //Get framebuffer index and ouput to frame buffer
     uint32_t framebuffer_i = 160 * ppu->memory->LY_LOCATION + mode_3_time;
@@ -302,10 +270,22 @@ uint8_t get_obj_color_index(PPU* ppu, uint16_t mode_3_time, int object_index) {
 
     OAM_Entry obj = ppu->scanline_obj[object_index];
 
-    //Account for flip
     uint8_t tile_x = mode_3_time - obj.x_pos;
     uint8_t tile_y = ly - obj.y_pos;
     uint8_t tile_index = ppu->scanline_obj[object_index].tile_index;
+
+    if (ppu->memory->LCDC_LOCATION & OBJ_SIZE) {
+        //For 8x16 objects, bit 0 is ignored for top tile but set for bottom tile
+        if (tile_y >= 8) {
+            tile_index |= 0x01;
+            tile_y -= 8;
+        }
+        else {
+            tile_index &= 0xFE;
+        }
+    }
+
+    //Account for flip
 
     //X flip
     //Get ther other 
@@ -316,14 +296,14 @@ uint8_t get_obj_color_index(PPU* ppu, uint16_t mode_3_time, int object_index) {
     if (obj.flags & OBJ_Y_FLIP) {
         tile_y = 7 - tile_y;
 
-        //If object is 8x16, also flip the tiles
-        if (ppu->scanline_obj[object_index].obj_size == 16) {
-            if (tile_index & 0x1) {
+        //Flip tiles if 8x16
+        if (ppu->memory->LCDC_LOCATION & OBJ_SIZE) {
+            if ((tile_index & 0x1) == 1) {
                 tile_index &= 0xFE;
             }
-            else {
+
+            else
                 tile_index |= 0x1;
-            }
         }
     }
 
@@ -396,8 +376,7 @@ int visible_obj_index(PPU* ppu, uint16_t mode_3_time) {
 
     //Looks through objects on the scanline to find one at this location
     for (int i = 0; i < ppu->state.current_obj_index; ++i) {
-        if ((mode_3_time >= ppu->scanline_obj[i].x_pos && mode_3_time < ppu->scanline_obj[i].x_pos + 8)
-            && (ly >= ppu->scanline_obj[i].y_pos && ly < ppu->scanline_obj[i].y_pos + 8)) {
+        if ((mode_3_time >= ppu->scanline_obj[i].x_pos && mode_3_time < ppu->scanline_obj[i].x_pos + 8)) {
 
             //Lowest x position object has priority
             if (index != -1) {

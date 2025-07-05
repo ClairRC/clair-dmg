@@ -170,7 +170,7 @@ uint8_t rom_read(Memory* mem, uint16_t address, Accessor accessor) {
 
     if (address <= 0x3FFF) {
         index = address; //Always bank 0 on non mbc1 cartridges
-        
+
         //On MBC1 in mode 1, this bank is a little weirder
         if (mem->mbc_chip->mbc_type == MBC_1) {
             //In mode 1, ROM bank is the value of BANK2, which is the upper 3 bits in this case

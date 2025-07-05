@@ -7,7 +7,7 @@
 #include "hardware_registers.h"
 #include "game_display.h"
 
-#define GAME_NAME "C:/Users/Claire/Desktop/tet.gb"
+#define GAME_NAME "C:/Users/Claire/Desktop/z.gb"
 #define BOOTROM_DIR "C:/Users/Claire/Desktop/boot.bi"
 
 int emulator_init() {
@@ -80,7 +80,6 @@ Memory* load_rom_data() {
         return NULL;
     }
 
-    //mbc_type &= 0x0F;
     rewind(file_ptr); //Reset file pointer...
     
     Memory* mem = memory_init(mbc_type, rom_byte, ram_byte);

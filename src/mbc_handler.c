@@ -66,7 +66,8 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
 
         case MBC_1:
             //MBC1 cartridges with less than 1MiB of memory allow for a "more ROM" or "more RAM" mode
-            if (rom_byte < 0x5) { mbc->has_mode_switch = 1; }
+            //TODO: Figure out how this works
+            if (/*rom_byte < 0x5*/1) { mbc->has_mode_switch = 1; }
             mbc->mbc_mode = 0; //MBC1 specific. Starts at 0 by default
             //TODO: Confirm if the thing below is true for all MBCs? Not super sure..
             mbc->current_rom_bank = 1; //MBC1 treats bank 0 as 1, so this starts at 1
@@ -149,32 +150,30 @@ void update_mbc1_data(MBC* mbc, uint16_t address, uint8_t value) {
     }
 
     //RAM bank register
+    //BANK2
     else if (address <= 0x5FFF) {
-        //"More RAM" mode (Mode 1)
+        //In mode 0, BANK2 is an extension to the ROM bank, which allows more ROM banking space
+        //In mode 1, BANK2 addresses the external RAM bank
+
         if (mbc->mbc_mode == 1) {
-            mbc->current_exram_bank = value & (mbc->num_exram_banks - 1);
+            //In mode 1, use this to set the RAM bank
+            if (mbc->num_exram_banks > 0)
+                mbc->current_exram_bank = value % mbc->num_exram_banks;
         }
+        else
+            mbc->current_exram_bank = 0;
 
-        //"More ROM" mode (Mode 0)
-        //BANK2
-        else {
-            //If this can be swtiched, then mode 0 only allwos reads from RAM bank 0
-            //Not sure exaaactly why?
-            //TODO: Confirm that and learn More
-            if (mbc->has_mode_switch) {
-                mbc->current_exram_bank = 0;
-            }
+        //This shooould change the ROM bank regardless, it only gets accessed though in mode 1
 
-            //Changes top 2 bits of the ROM bank
-            uint8_t current = mbc->current_rom_bank;
-            current &= 0x1F; //Preserve lower bits (BANK1)
-            current |= (value & 0x03) << 5; //Sets upper 3 bits (BANK2)
-            current %= mbc->num_rom_banks;
+        //Changes top 2 bits of the ROM bank
+        uint8_t current = mbc->current_rom_bank;
+        current &= 0x1F; //Preserve lower bits (BANK1)
+        current |= (value & 0x03) << 5; //Sets upper 3 bits (BANK2)
+        current %= mbc->num_rom_banks;
 
-            //Only sets the bank if the cartridge has enough banks
-            //TODO: This MIGHT be false, it might wrap around?
-            mbc->current_rom_bank = current;
-        }
+        //Only sets the bank if the cartridge has enough banks
+        //TODO: This MIGHT be false, it might wrap around?
+        mbc->current_rom_bank = current;
     }
 
     //Mode register
@@ -200,13 +199,11 @@ void update_mbc2_data(MBC* mbc, uint16_t address, uint8_t value) {
         //If bit 8 is set, this selects the ROM bank
         else {
             //Only sets the bank if the cartridge has enough banks
-            //TODO: This MIGHT be false, it might wrap around?
-            if (value < mbc->num_rom_banks)
-                mbc->current_rom_bank = value;
+            mbc->current_rom_bank = (value & 0xF) % mbc->num_rom_banks;
 
             //treat bank 0 as bank 1
             //TODO: This might only be an MBC1 thing? Or not? I'm not super sure
-            if (mbc->current_rom_bank == 0)
+            if ((value & 0xF) == 0)
                 mbc->current_rom_bank = 1;
         }
 

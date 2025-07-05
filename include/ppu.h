@@ -27,7 +27,6 @@ typedef struct {
     int16_t x_pos;
     uint8_t tile_index;
     uint8_t flags;
-    uint8_t obj_size;
 } OAM_Entry;
 
 typedef struct {
