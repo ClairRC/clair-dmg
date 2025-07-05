@@ -49,6 +49,7 @@ struct Instruction {
     uint8_t second_operand;
 
     size_t num_bytes; //Size of instruction in bytes
+    uint8_t min_num_cycles; //Minimum number of cycles the instruction takes
 };
 
 //Lookup tables for CPU instructions.

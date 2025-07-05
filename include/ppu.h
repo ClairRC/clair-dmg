@@ -4,44 +4,70 @@
 #include <stdint.h>
 #include "memory.h"
 #include "hardware_def.h"
+#include "game_display.h"
 
 //This is the Pixel Processing Unit, which is the GameBoy's screen basically.
 
+//State flags for PPU
+typedef struct {
+    uint8_t lcd_on; //Whether LCD is on or not TODO: Might be redundant?
+
+    uint16_t window_ly; //Window has an internal scanline counter 
+    uint8_t window_ly_increment; //Flag of whether or not window's internal scanline counter has been incremented on this scanline
+
+    uint8_t prev_stat; //Whenther stat was previous triggered or not
+
+    int current_obj_index; //Tracks the current index of the scanline's sprite array
+    int pixel_obj_index; //Tracks object that is drawn on current pixel to avoid looping multiple times
+} PPUState;
+
 //Struct for Object attributes, which will help drawing a lot
 typedef struct {
-    uint8_t y_pos;
-    uint8_t x_pos;
+    int16_t y_pos;
+    int16_t x_pos;
     uint8_t tile_index;
     uint8_t flags;
+    uint8_t obj_size;
 } OAM_Entry;
 
 typedef struct {
     Memory* memory; //Memory
-    uint32_t frame_time; //Elapsed frame time
-    uint8_t vblank_active; //Whether PPU is in vblank mode
-    uint8_t prev_stat; //Whenther stat was previous triggered or not
 
     //Scanline OAM entires
-    OAM_Entry oam_indices[10];
-    int current_oam_index; //Tracks the current index of the array
+    OAM_Entry scanline_obj[10]; //Each scanline can have at max 10 sprites visible
 
     //Frame buffer and current palette data for drawing...
-    //TODO: Possibly move this and all that.
-    uint8_t framebuffer[160 * 144]; //Gameboy is 160x144 pixels
-    uint16_t framebuffer_i; //Current index of the frame buffer
+    uint32_t* framebuffer; //Screen frame buffer
+    uint32_t dmg_palette[4]; //DMG palette consistes of 4 colors. Place holder for now.
 
-    uint8_t palette[4]; //Gameboy has 4 colors...
+    //PPU state flags
+    PPUState state;
+
+    DisplayData* display; //SDL info for displaying
 } PPU;
 
-PPU* ppu_init(Memory*);
-void ppu_destroy(PPU*);
-void update_ppu(PPU*, uint16_t);
-void ppu_oam_scan(PPU*, uint16_t);
-int ppu_write_lcd(PPU*, uint16_t);
-void update_ppu_state(PPU*, uint16_t);
-void draw(PPU*);
-void update_stat(PPU*); //Updates LCD Status
+PPU* ppu_init(Memory* mem, DisplayData* display);
+void ppu_destroy(PPU* ppu);
+void ppu_oam_scan(PPU* ppu, uint8_t mode_2_time);
+void ppu_write_lcd(PPU* ppu, uint16_t mode_3_time);
+void draw(PPU* ppu);
 
-int write_bg_win(PPU*, uint16_t); //Helper function to write background/window
+//PPU Mode switch functions
+void switch_mode_0_1(PPU* ppu);
+void switch_mode_1_2(PPU* ppu);
+void switch_mode_2_3(PPU* ppu);
+void switch_mode_3_0(PPU* ppu);
+void switch_mode_0_2(PPU* ppu);
+
+uint8_t get_bg_color_index(PPU* ppu, uint16_t mode_3_time); //Helper function to get background color
+uint8_t get_win_color_index(PPU* ppu, uint16_t mode_3_time); //Helper function to get window color
+uint8_t get_obj_color_index(PPU* ppu, uint16_t mode_3_time, int object_index); //Helper function to get object color
+uint8_t get_color_index(PPU* ppu, uint8_t tilemap_pixel_x, uint8_t tilemap_pixel_y, uint8_t tile_index, uint8_t tile_area); //Gets Color index for background and window tiles
+
+void store_object(PPU* ppu, uint16_t object_ba);
+uint8_t win_is_visible(PPU* ppu, uint16_t mode_3_time);
+int visible_obj_index(PPU* ppu, uint16_t mode_3_time);
+uint8_t get_pixel_color_id(PPU* ppu, uint16_t mode_3_time);
+uint8_t obj_color_id_from_index(PPU* ppu, uint8_t color_index, uint8_t palette);
 
 #endif 

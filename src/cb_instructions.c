@@ -38,8 +38,8 @@ int rlc_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit7 >> 7);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Rotates register value right circular
@@ -58,8 +58,8 @@ int rrc_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit0); //If bit0 was 0, clear flag. If it was 1, set flag
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Rotates register value left
@@ -79,8 +79,8 @@ int rl_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit7 >> 7);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Rotates register value right
@@ -99,8 +99,8 @@ int rr_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, val & 0x1);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shift register left arithmetic
@@ -119,8 +119,8 @@ int sla_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit7);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shift register right arithmetic
@@ -140,8 +140,8 @@ int sra_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit0);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Swaps upper and lower nibbles of register
@@ -159,8 +159,8 @@ int swap_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, CARRY);
     updateFlag(cpu, ZERO, CHECK_ZERO_8(result));
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shift register right logical
@@ -179,8 +179,8 @@ int srl_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit0);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->first_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Checks if specified bit is clear or set and updates flags
@@ -194,8 +194,8 @@ int bit_b_r(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, SUB);
     updateFlag(cpu, ZERO, CHECK_ZERO_8(result));
 
-    //8/12 depending on if register is HL or 8-bit
-    return instruction->second_operand == REG_HL ? 12 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Resets bit at specified location
@@ -207,8 +207,8 @@ int res_b_r(CPU* cpu, Instruction* instruction) {
     //Store result
     setVal(cpu, instruction->second_operand, result);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->second_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Sets bit at specified location
@@ -220,6 +220,6 @@ int set_b_r(CPU* cpu, Instruction* instruction) {
     //Store result
     setVal(cpu, instruction->second_operand, result);
 
-    //8/16 depending on if register is HL or 8-bit
-    return instruction->second_operand == REG_HL ? 16 : 8;
+    //0 extra t-cycles
+    return 0;
 }

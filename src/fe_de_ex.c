@@ -1,7 +1,7 @@
 #include "fe_de_ex.h" 
-#include "instructions.h"
 #include "hardware.h"
 #include "interrupt_handler.h"
+#include "master_clock.h"
 
 //Begins instruction loop and handles all of that fun stuff...
 int fe_de_ex(EmulatorSystem* system) {
@@ -10,21 +10,11 @@ int fe_de_ex(EmulatorSystem* system) {
 
     FILE* ptr = fopen("C:/Users/Claire/Desktop/logfile.txt", "w");
 
-    while (1) {
-        uint16_t delta_time = 0;
+    uint8_t log = 0;
 
-        //If there are interrupts pending...
-        if (anyInterruptPending(cpu->memory)) {
-            clearFlag(cpu, IS_HALTED); //Unhalt CPU if halted
-
-            //If IME is enabled, service the interrupts...
-            if(flagIsSet(cpu, IME)) {
-                delta_time += serviceInterrupt(cpu);
-                //Update other hardware state again...
-                sync_hardware(system, delta_time);
-                delta_time = 0; //Reset delta time
-            }
-        }
+    while (system->ppu->display->running) {
+        
+        handle_interrupt(system); //Handles interrupts if there are any
 
         //If EI was called, enable IME now...
         if (cpu->state.enableIME) {
@@ -32,52 +22,129 @@ int fe_de_ex(EmulatorSystem* system) {
             cpu->state.enableIME = 0;
         }
 
-        //Fetch intsruction
-        uint8_t opcode = mem_read(mem, cpu->registers.pc++, CPU_ACCESS);
+        //Handle instruction
+        //This doesn't happen if CPU is HALTed
+        if (!flagIsSet(cpu, IS_HALTED)) {
+            //Fetch instruction
+            uint8_t opcode = fetch_instruction_opcode(system);
 
-        //HALT bug results in the PC failing to increment, so it will run the following
-        //instruction twice. HALT simply stops CPU execution, so in either case PC is decremented
-        if (flagIsSet(cpu, IS_HALTED) || flagIsSet(cpu, HALT_BUG))
-            --cpu->registers.pc;
+            //Decode instruction
+            Instruction* instr = decode_instruction(system, opcode);
 
-        //If HALT bug is active, it'll reread the instruction once, so I disable the flag here
-        if (flagIsSet(cpu, HALT_BUG)) {
-            clearFlag(cpu, HALT_BUG);
+            //Execute instruction
+            execute_instruction(system, instr);
         }
-
-        //If we are halted, the CPU does nothing here, which effectively is a NOP and PC stays the same
-        //So to simulate this I will just manually change the opcode to be a NOP
-        if (flagIsSet(cpu, IS_HALTED)) {
-            opcode = 0x00;
-        }
-
-        //Decode instruction
-        Instruction* instr;
-        if (opcode != 0xCB) {
-            //If opcode is not CB, then get the instruction from normal table..
-            instr = &main_instructions[opcode];
-        }
+        //If CPU is HALTED, 4 cycles pass instead
         else {
-            //Otherwise, get the CB instruction
-            opcode = mem_read(mem, cpu->registers.pc++, CPU_ACCESS);
-            instr = &cb_instructions[opcode];
+            tick_hardware(system, 4);
         }
 
-        //Execute instruction
-        delta_time += instr->funct_ptr(cpu, instr);
-
-        //Update other hardware state...
-        sync_hardware(system, delta_time);
-        delta_time = 0;
+        //Everything below this is just for debugging
 
         RegisterFile r = cpu->registers;
-        if (!cpu->state.isHalted) {
-            fprintf(ptr, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
-                r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->memory, r.pc, PPU_ACCESS), mem_read(cpu->memory, r.pc + 1, PPU_ACCESS), mem_read(cpu->memory, r.pc + 2, PPU_ACCESS), mem_read(cpu->memory, r.pc + 3, PPU_ACCESS)
-            );
-        }
         
+        uint16_t target_pc_start = 0x150;
+        uint16_t target_pc_end = 0xFFFF;
+
+        if (r.pc == target_pc_start)
+            log = 1;
+
+        if (r.pc == target_pc_end && log)
+            fclose(ptr);
+
+        uint8_t yes = 0;
+        if (!cpu->state.isHalted && yes) {
+            if (log) {
+               fprintf(ptr, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
+                    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->memory, r.pc, PPU_ACCESS), mem_read(cpu->memory, r.pc + 1, PPU_ACCESS), mem_read(cpu->memory, r.pc + 2, PPU_ACCESS), mem_read(cpu->memory, r.pc + 3, PPU_ACCESS)
+                );
+            }
+
+            if (0) {
+                uint8_t opcode = mem_read(cpu->memory, r.pc, PPU_ACCESS);
+                uint8_t num_bytes = main_instructions[opcode].num_bytes;
+                if (opcode != 0xCB) {
+                    fprintf(ptr, "Next instruction: %02X ", mem_read(cpu->memory, r.pc, PPU_ACCESS));
+                    for (int i = 1; i < num_bytes; ++i)
+                        fprintf(ptr, "%02X", mem_read(cpu->memory, r.pc + i, PPU_ACCESS));
+                }
+                else {
+                    fprintf(ptr, "Next instruction: CB-%02X ", opcode);
+                    for (int i = 1; i < num_bytes; ++i)
+                        fprintf(ptr, "%02X", mem_read(cpu->memory, r.pc + i, PPU_ACCESS));
+                }
+
+                fprintf(ptr, "\n");
+            }
+
+            if (0) {
+                fprintf(ptr, "Remaining DMA Cycles: %d\n\n", mem->state.remaining_dma_cycles);
+            }
+        }
     }
-    fclose(ptr);
+
+    if (ptr) { fclose(ptr); }
     return 0;
+}
+
+void handle_interrupt(EmulatorSystem* system) {
+    //If there are interrupts pending...
+    if (anyInterruptPending(system->cpu->memory)) {
+        clearFlag(system->cpu, IS_HALTED); //Unhalt CPU if halted
+
+        //If IME is enabled, service the interrupts...
+        if (flagIsSet(system->cpu, IME)) {
+            //Update hardware before interrupt occurs...
+            //Interrupt always takes 20 t-cycles
+            tick_hardware(system, 20);
+            serviceInterrupt(system->cpu);
+        }
+    }
+}
+
+//Fetches instruction and handles HALT bug
+uint8_t fetch_instruction_opcode(EmulatorSystem* system) {
+    CPU* cpu = system->cpu;
+    Memory* mem = system->memory;
+
+    uint8_t opcode = mem_read(mem, cpu->registers.pc++, CPU_ACCESS);
+
+    //HALT bug will cause the PC to not increment for 1 instruction, but it will still continue execution.
+    if (flagIsSet(cpu, HALT_BUG)) {
+        --cpu->registers.pc;
+        clearFlag(cpu, HALT_BUG);
+    }
+
+    return opcode;
+}
+
+//Decodes instruction and returns the correct pointer
+Instruction* decode_instruction(EmulatorSystem* system, uint8_t opcode) {
+    Instruction* instr;
+    if (opcode != 0xCB) {
+        //If opcode is not CB, then get the instruction from normal table..
+        instr = &main_instructions[opcode];
+    }
+    else {
+        //Otherwise, get the CB instruction
+        opcode = mem_read(system->memory, system->cpu->registers.pc++, CPU_ACCESS);
+        instr = &cb_instructions[opcode];
+    }
+
+    return instr;
+}
+
+//Executes instruction and ticks hardware
+void execute_instruction(EmulatorSystem* system, Instruction* instr) {
+    //Tick hardware before instruction executes to simulate it happening simultaneously
+    uint8_t instr_time = instr->min_num_cycles;
+    tick_hardware(system, instr_time);
+
+    //Execute instruction and store extra cycles
+    uint8_t extra_instr_time = instr->funct_ptr(system->cpu, instr);
+
+    //If there are extra ticks (ie, a conditional jump occured), tick the remaining amount
+    if (extra_instr_time != 0) {
+        tick_hardware(system, extra_instr_time);
+    }
 }

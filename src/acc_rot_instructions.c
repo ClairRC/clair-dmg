@@ -15,8 +15,8 @@ int rrca(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit0); //If bit0 was 0, clear flag. If it was 1, set flag
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shifts bits right, reaplaces msb with carry bit
@@ -34,8 +34,8 @@ int rra(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, val & 0x1);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shifts bit left, replaces lsb with previos msb
@@ -53,8 +53,8 @@ int rlca(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit7 >> 7);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Shifts bits left, replaces lsb with carry bit
@@ -73,6 +73,6 @@ int rla(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, CARRY, bit7 >> 7);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }

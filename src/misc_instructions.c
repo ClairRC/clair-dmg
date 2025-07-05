@@ -13,8 +13,8 @@ int cpl(CPU* cpu, Instruction* instruction) {
     setFlag(cpu, HALFCARRY);
     setFlag(cpu, SUB);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Complements carry flag
@@ -24,8 +24,8 @@ int ccf(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, SUB);
     clearFlag(cpu, HALFCARRY);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Sets carry flag
@@ -35,8 +35,8 @@ int scf(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, SUB);
     clearFlag(cpu, HALFCARRY);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Decimal adjust accumulator
@@ -83,8 +83,8 @@ int daa(CPU* cpu, Instruction* instruction) {
     clearFlag(cpu, HALFCARRY);
     updateFlag(cpu, ZERO, CHECK_ZERO_8(correction));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Intended to stop the clock and put the system into a more efficient power saving mode
@@ -104,8 +104,8 @@ int stop(CPU* cpu, Instruction* instruction) {
     //TODO: Implement CGB double-speed mode
     cpu->registers.pc++; //Instruction is 2-bytes. It simply skips one byte.
     
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Halts the CPU but does not stop the clock
@@ -133,14 +133,14 @@ int halt(CPU* cpu, Instruction* instruction) {
             setFlag(cpu, HALT_BUG);
     }
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //No-operation. Simply acts as a dummy instruction
 int nop(CPU* cpu, Instruction* instruction) {
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Disables interrupts immediately by clearing IME
@@ -151,8 +151,8 @@ int di(CPU* cpu, Instruction* instruction) {
     //If an EI and DI get called together, IME is never set, so this accoutns for that weird edge-case
     clearFlag(cpu, ENABLE_IME);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Enables interrupts with a 1-cycle delay by setting IME
@@ -160,6 +160,6 @@ int ei(CPU* cpu, Instruction* instruction) {
     //Set enable IME flag, which accounts for the 1-cycle delay
     setFlag(cpu, ENABLE_IME);
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }

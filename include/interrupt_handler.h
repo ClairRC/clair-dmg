@@ -14,7 +14,7 @@ typedef enum {
     INTERRUPT_JOYPAD = 4
 } Interrupt;
 
-int serviceInterrupt(CPU*);
+void serviceInterrupt(CPU*);
 int interruptPending(Interrupt, Memory*);
 int anyInterruptPending(Memory*);
 void requestInterrupt(Interrupt, Memory*);

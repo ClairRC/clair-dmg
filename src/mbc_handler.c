@@ -15,20 +15,30 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
         return NULL;
     }
 
-    //Storing these values JUST in case.
+    //MBC chip metadata (mostly for debugging but not necessarily needed)
     mbc->mbc_type_byte = type_byte;
     mbc->mbc_rom_size_byte = rom_byte;
     mbc->mbc_ram_size_byte = ram_byte;
-    mbc->has_mode_switch = 0;
+
+    //Get MBC chip type
+    mbc->mbc_type = getMBCType(type_byte);
+
+    /*
+    * Default MBC Values
+    */
+
+    mbc->current_rom_bank = 1; //Starts at 1 by default TODO: confirm
+    mbc->mbc_mode = 1; //MBC1 specific but keeping here for clarity
+    mbc->current_exram_bank = 0; //Starts at 0 by default
+    mbc->exram_enabled = 0; //Specifies if this is enabled. Starts disabled
+    mbc->has_mode_switch = 0; //MBC1 has a mode switch for "more ram" or "more rom"
     mbc->has_battery = 0;
     mbc->has_rtc = 0;
 
-    mbc->mbc_type = getMBCType(type_byte);
-
-    //Games bigger than 1MiB and MBC1 wire this differently for more ROM space
-    if (mbc->mbc_type == MBC_1 && rom_byte < 0x5)
-        mbc->has_mode_switch = 1;
-
+    /*
+     * Get general MBC Information
+     */
+    
     //Battery MBCs
     if (type_byte == 0x3 || type_byte == 0x6 || type_byte == 0xF ||
         type_byte == 0x1B || type_byte == 0x1E)
@@ -42,16 +52,29 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
     mbc->num_rom_banks = 2 << rom_byte; //2^(rom_byte + 1)
     mbc->num_exram_banks = getNumRAMBanks(ram_byte);
 
-    //Sets default values for registers flags
-    mbc->mbc_mode = 0; //MBC1 specific
-    //This always starts at 0, but no mbc alwasys has stataic addresses, 
-    //and MBC1 always treats 0 as 1... For some reason.
-    if (mbc->mbc_type == MBC_NONE || mbc->mbc_type == MBC_1)
-        mbc->current_rom_bank = 1;
-    else
-        mbc->current_rom_bank = 0;
-    mbc->current_exram_bank = 0;
-    mbc->exram_enabled = 0; //Specifies if this is enabled.
+    /*
+     * MBC Specific values
+     */
+
+    switch (mbc->mbc_type) {
+        case MBC_NONE:
+            //Since no MBC has no bank switching, there is always just bank 0 and 1, and the area for the switchable bank is just static
+            //TODO: Confirm that there is always at least 2 ROM banks even with no MBC
+            mbc->current_rom_bank = 1;
+            if (mbc->num_exram_banks > 0) { mbc->exram_enabled = 1; } //SOME no mbc cartridges have RAM, in which case it is just static addresses
+            break;
+
+        case MBC_1:
+            //MBC1 cartridges with less than 1MiB of memory allow for a "more ROM" or "more RAM" mode
+            if (rom_byte < 0x5) { mbc->has_mode_switch = 1; }
+            mbc->mbc_mode = 0; //MBC1 specific. Starts at 0 by default
+            //TODO: Confirm if the thing below is true for all MBCs? Not super sure..
+            mbc->current_rom_bank = 1; //MBC1 treats bank 0 as 1, so this starts at 1
+            break;
+
+        default:
+            break;
+    }
 
     return mbc;
 }
@@ -106,35 +129,57 @@ void update_mbc1_data(MBC* mbc, uint16_t address, uint8_t value) {
     }
 
     //ROM bank registers
+    //BANK1
     else if(address <= 0x3FFF) {
         //Bottom 5 bits select the lower 5 ROM bank bits
         uint8_t current = mbc->current_rom_bank;
-        //Preserves top 3 bits of current, preserves bottom 5 of new value
-        //Bitwise or combines them, and the last AND ignores bits that set the ROM bank too high.
-        //Soo if there are less than 16, the & 0x0F keep the 5th bit 0.
-        //Technically the same as a modulo I THINK, but this is "more hardware accurate"
-        mbc->current_rom_bank = ((current & 0x60) | (value & 0x1F)) & (mbc->num_rom_banks - 1);
-        if (mbc->current_rom_bank == 0)
-            mbc->current_rom_bank = 1; //MBC1 treats 0 as 1 for this purpose
+
+       
+        //This is probably the issue..
+        //Preserves top 3 bits of the current bank and replaces the bottom 5
+        current &= 0x60; //Preserves bits 6 and 7 (BANK2)
+        current |= value & 0x1F; //Sets bottom 5 bits (BANK1)
+        current %= mbc->num_rom_banks; //Masks the value based on number of rom banks
+
+        if ((value & 0x1F) == 0x0)
+            current = 1; //BANK 1 corrects 0 value to 1
+
+        mbc->current_rom_bank = current;
+
     }
 
     //RAM bank register
     else if (address <= 0x5FFF) {
-        //"More RAM" mode
-        if (mbc->mbc_mode == 1)
-            mbc->current_exram_bank = value & 0x03; //Preserves bottom 2 bits
+        //"More RAM" mode (Mode 1)
+        if (mbc->mbc_mode == 1) {
+            mbc->current_exram_bank = value & (mbc->num_exram_banks - 1);
+        }
+
+        //"More ROM" mode (Mode 0)
+        //BANK2
         else {
-            //This basically will just edit bits 5 and 6 of the current value...
-            mbc->current_rom_bank = (mbc->current_rom_bank & 0x9F) | ((value << 5) & 0x60);
-            mbc->current_rom_bank &= (mbc->num_rom_banks - 1);
-            if (mbc->current_rom_bank == 0)
-                mbc->current_rom_bank = 1;
+            //If this can be swtiched, then mode 0 only allwos reads from RAM bank 0
+            //Not sure exaaactly why?
+            //TODO: Confirm that and learn More
+            if (mbc->has_mode_switch) {
+                mbc->current_exram_bank = 0;
+            }
+
+            //Changes top 2 bits of the ROM bank
+            uint8_t current = mbc->current_rom_bank;
+            current &= 0x1F; //Preserve lower bits (BANK1)
+            current |= (value & 0x03) << 5; //Sets upper 3 bits (BANK2)
+            current %= mbc->num_rom_banks;
+
+            //Only sets the bank if the cartridge has enough banks
+            //TODO: This MIGHT be false, it might wrap around?
+            mbc->current_rom_bank = current;
         }
     }
 
     //Mode register
     else if (address <= 0x7FFF) {
-        //If this MBC is switchable
+        //Switches mode if this MBC is switchable
         if (mbc->has_mode_switch) {
             mbc->mbc_mode = value & 0x01; //Lowest bit sets this
         }
@@ -143,20 +188,28 @@ void update_mbc1_data(MBC* mbc, uint16_t address, uint8_t value) {
 
 void update_mbc2_data(MBC* mbc, uint16_t address, uint8_t value) {
     if (address <= 0x3FFF) {
-        //Different things depending on bit 8 of the address
-        if (((address >> 8) & 0x01) == 1) {
-            //If bit 8 is set...
-            //Bottom 4 bits select ROM bank
-            mbc->current_rom_bank = (value & 0x0F) & (mbc->num_rom_banks - 1);
-            //Sets ROM bank to 1 if its 0 on MBC2
+        //Depending on bit 8 of the address, this is either the RAM enable register,
+        //or the ROM bank register
+
+        //If bit 8 of the address is clear, this is the RAM enable register
+        if (((address >> 8) & 0x1) == 0) {
+            //If lower nibble of value is 0x0A, enable register. Otherwise, disable
+            mbc->exram_enabled = (value & 0x0F) == 0x0A;
+        }
+
+        //If bit 8 is set, this selects the ROM bank
+        else {
+            //Only sets the bank if the cartridge has enough banks
+            //TODO: This MIGHT be false, it might wrap around?
+            if (value < mbc->num_rom_banks)
+                mbc->current_rom_bank = value;
+
+            //treat bank 0 as bank 1
+            //TODO: This might only be an MBC1 thing? Or not? I'm not super sure
             if (mbc->current_rom_bank == 0)
                 mbc->current_rom_bank = 1;
         }
-        else {
-            //If bit 8 is clear...
-            //Enable exram access if lower nibble is 0x0A
-            mbc->exram_enabled = (value & 0x0F) == 0x0A;
-        }
+
     }
 }
 
@@ -173,7 +226,7 @@ void update_mbc5_data(MBC* mbc, uint16_t address, uint8_t value) {
 
     //RAM Enable register
     if (address <= 0x1FFF) {
-        mbc->exram_enabled = (value & 0x0F) == 0x0A; 
+        mbc->exram_enabled = (value & 0x0F) == 0x0A;
     }
 
     //ROM bank select
@@ -208,17 +261,24 @@ MBC_Type getMBCType(uint8_t type) {
     if (type == 0x00)
         return MBC_NONE;
 
-    if (type <= 0x03)
+    if (type == 0x01 ||
+        type == 0x02 ||
+        type == 0x03)
         return MBC_1;
 
-    if (type <= 0x05)
+    if (type == 0x05 ||
+        type == 0x06)
         return MBC_2;
 
-    if (type == 0x0F || type == 0x11)
-        //Other MBC3 values only apply to Japanese Pokemon Crystal, so for now they will not be included
+    if (type == 0x0F ||
+        type == 0x10 ||
+        type == 0x11 ||
+        type == 0x12 ||
+        type == 0x13)
         return MBC_3;
 
     if (type >= 0x19 && type <= 0x1E)
+        //This range is all MBC5
         return MBC_5;
 
     //Anything else is incompatible

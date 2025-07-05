@@ -1,17 +1,19 @@
 #include "interrupt_handler.h"
 #include "hardware_def.h"
+#include <stdio.h>
 
 //Services interrupt
-int serviceInterrupt(CPU* cpu) {
+void serviceInterrupt(CPU* cpu) {
     //This process basically just calls the interrupt itself. It takes 20 t-cycles
 
     //Save return address to stack
     uint8_t pc_lsb = (uint8_t)(cpu->registers.pc);
     uint8_t pc_msb = (uint8_t)(cpu->registers.pc >> 8);
 
-    mem_write(cpu->memory, --cpu->registers.sp, pc_msb, CPU_ACCESS);
-    mem_write(cpu->memory, --cpu->registers.sp, pc_lsb, CPU_ACCESS);
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, pc_msb, CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, pc_lsb, CPU_ACCESS)) { --cpu->registers.sp; }
 
+    //Default value in case SOMEHOW this function is called when an interrupt is not actually pending, so no jump will happen
     uint16_t target_address = 0x0;
 
     //Gets highest priority interrupt address and clears pending interrupt
@@ -42,9 +44,6 @@ int serviceInterrupt(CPU* cpu) {
 
     clearFlag(cpu, IME); //Reset IME
     cpu->registers.pc = target_address; //Jumps to address
-
-    //20 t-cycles for this whole process
-    return 20;
 }
 
 //Checks if specific interrupt can be serviced

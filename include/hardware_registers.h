@@ -13,7 +13,7 @@ typedef struct {
 } HardwareRegister;
 
 //Table and populate function
-extern HardwareRegister hw_registers[256];
+extern HardwareRegister hw_registers[0x80];
 void init_hw_registers(void);
 
 #endif

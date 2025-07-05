@@ -4,6 +4,7 @@
 #include "memory.h" 
 #include "cpu.h"
 #include "ppu.h"
+#include "master_clock.h"
 
 //Holds global system information, including system time and pointers to individual pieces
 //The point of this is to have like a "central" struct
@@ -16,28 +17,16 @@
 //update them in relation to the emulator state as a whole, if that makes sense... Again I'm mostly thinking of timing.
 
 typedef struct {
-    //Timer Stuff (in t-cycles)
-    uint16_t system_time; //System timer (~4MHz)
-    uint32_t frame_time; //Total time elapsed this frame
-    uint16_t delta_time; //Number of cycles since last update (I think this is always time last instruction took)
-
-    uint8_t prev_tac_bit; //Stores what the last Timer Control bit was for updating TIMA
-    uint8_t prev_tma_val; //Stores previous M-Cycle's TMA value for TIMA overflow
-
-    uint8_t tima_overflow; //Flag to check whether TIMA overflowed
-    uint8_t tima_overflow_buffer; //Flag to check if TIMA overflowed 2 cycles ago for TIMA updates
-} SystemClock;
-
-typedef struct {
     Memory* memory;
     CPU* cpu;
     PPU* ppu;
-    SystemClock* system_clock;
+    MasterClock* sys_clock;
 } EmulatorSystem;
 
 //Initializes system.
 //Only takes memory pointer since memory is the "indepenent" piece of the system 
 //that everything else uses
-EmulatorSystem* system_init(Memory*);
+EmulatorSystem* system_init(Memory* memory, DisplayData* display);
+void tick_hardware(EmulatorSystem* system, uint16_t ticks); //Updates hardware timing
 
 #endif 

@@ -8,14 +8,14 @@ int call_imm16(CPU* cpu, Instruction* instruction){
     uint16_t target_address = UNSIGNED_16(lsb, msb);
 
     //Save return address to stack
-    mem_write(cpu->memory, --cpu->registers.sp, GET_MSB(cpu->registers.pc), CPU_ACCESS);
-    mem_write(cpu->memory, --cpu->registers.sp, GET_LSB(cpu->registers.pc), CPU_ACCESS);
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_MSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_LSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
 
     //Set new PC
     cpu->registers.pc = target_address;
 
-    //24 t-cycles
-    return 24;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Calls function at immediate 16-bit address if flag is set/cleared
@@ -29,31 +29,31 @@ int call_flag_imm16(CPU* cpu, Instruction* instruction) {
     //If flag is SET/CLEAR, do the jump, otherwise, don't do that
     if (flagIsSet(cpu, instruction->first_operand) == instruction->second_operand) {
         //Save return address to stack
-        mem_write(cpu->memory, --cpu->registers.sp, GET_MSB(cpu->registers.pc), CPU_ACCESS);
-        mem_write(cpu->memory, --cpu->registers.sp, GET_LSB(cpu->registers.pc), CPU_ACCESS);
+        if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_MSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
+        if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_LSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
 
         //Set the new pc
         cpu->registers.pc = target_address;
 
-        //24 t-cycles if it jumps
-        return 24;
+        //12 extra t-cycles if it jumps
+        return 12;
     }
     else
-        //12 t-cycles if no jump
-        return 12;
+        //0 extra t-cycles if no jump
+        return 0;
 }
 
 //Calls function at pre-determined address
 int rst_imm16(CPU* cpu, Instruction* instruction) {
     //Save return address to stack
-    mem_write(cpu->memory, --cpu->registers.sp, GET_MSB(cpu->registers.pc), CPU_ACCESS);
-    mem_write(cpu->memory, --cpu->registers.sp, GET_LSB(cpu->registers.pc), CPU_ACCESS);
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_MSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_LSB(cpu->registers.pc), CPU_ACCESS)) { --cpu->registers.sp; }
 
     //Jump to address
     cpu->registers.pc = UNSIGNED_16(instruction->first_operand, 0x00);
 
-    //16 t-cycles
-    return 16;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Jumps to immediate 16-bit address
@@ -66,8 +66,8 @@ int jp_imm16(CPU* cpu, Instruction* instruction) {
     //Jump
     cpu->registers.pc = target_address;
 
-    //16 t-cycles
-    return 16;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Jumps to immediate 16-bit address if flag is set/clear
@@ -81,12 +81,12 @@ int jp_flag_imm16(CPU* cpu, Instruction* instruction) {
     //If true, jump
     if (flagIsSet(cpu, instruction->first_operand) == instruction->second_operand) {
         cpu->registers.pc = target_address;
-        //16 t-cycles when jump occurs
-        return 16;
+        //4 extra t-cycles when jump occurs
+        return 4;
     }
     else 
-        // t-cycles when no jump
-        return 12;
+        //0 extra t-cycles if no jump
+        return 0;
 }
 
 //Jumps to address stored in Hl
@@ -94,8 +94,8 @@ int jp_hl(CPU* cpu, Instruction* instruction) {
     uint16_t address = getRegisterValue16(cpu, REG_HL);
     cpu->registers.pc = address;
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Jumps to relative address
@@ -106,8 +106,8 @@ int jr_imm8s(CPU* cpu, Instruction* instruction) {
     //Jump
     cpu->registers.pc += (int8_t)offset;
 
-    //12 t-cycles
-    return 12;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Jumps to relative address if flag is set/cleared
@@ -119,12 +119,12 @@ int jr_flag_imm8s(CPU* cpu, Instruction* instruction) {
     if (flagIsSet(cpu, instruction->first_operand) == instruction->second_operand) {
         cpu->registers.pc += (int8_t) offset;
 
-        //12 t-cycles if jump happens
-        return 12;
+        //4 t-cycles if jump happens
+        return 4;
     }
     else
-        //8 t-cycles if no jump
-        return 8;
+        //0 extra t-cycles if no jump
+        return 0;
 }
 
 //Returns from function call
@@ -136,8 +136,8 @@ int ret(CPU* cpu, Instruction* instruction) {
     //Jumps back
     cpu->registers.pc = UNSIGNED_16(lsb, msb);
 
-    //16 t-cycles
-    return 16;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Returns from function call if flag is set/clear
@@ -150,12 +150,12 @@ int ret_flag(CPU* cpu, Instruction* instruction) {
 
         cpu->registers.pc = UNSIGNED_16(lsb, msb);
 
-        //20 t-cycles if return
-        return 20;
+        //12 extra t-cycles if return
+        return 12;
     }
     else 
-        //8 t-cycles if no return
-        return 8;
+        //0 extra t-cycles if no jump
+        return 0;
 }
 
 //Returns from interrupt handler
@@ -170,6 +170,6 @@ int reti(CPU* cpu, Instruction* instruction) {
     //Enables IME
     setFlag(cpu, IME);
 
-    //16 t-cycles
-    return 16;
+    //0 extra t-cycles
+    return 0;
 }

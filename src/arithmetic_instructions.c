@@ -18,8 +18,8 @@ int add_r8_r8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD(dest_val, src_val));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Adds value from 8-bit register to value at address stored in 16-bit register and stores it in the 8-bit register
@@ -40,8 +40,8 @@ int add_r8_r16mem(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result)); //Carry flag
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD(src_val, dest_val));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Add value in 8-bit regsiter to 8-bit immediate and store it in the 8-bit regsiter
@@ -61,8 +61,8 @@ int add_r8_imm8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD(src_val, dest_val));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Add values of 2 16-bit registers and stores it in the first one
@@ -81,8 +81,8 @@ int add_r16_r16(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_16BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_16BIT_ADD(src_val, dest_val));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Adds value stored in 16-bit register to signed 8-bit immediate and stores it in 16-bit register
@@ -103,8 +103,8 @@ int add_r16_imm8s(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, ((dest_val & 0xFF) + (uint8_t)src_val) > 0xFF); //Carry flag
     updateFlag(cpu, HALFCARRY, ((dest_val & 0xF) + ((uint8_t)src_val & 0xF)) > 0xF); //Half-carry flag
 
-    //16 t-cycles
-    return 16;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Adds value in 8-bit register to 8-bit register as well as the carry bit and stores in first 8-bit register
@@ -125,8 +125,8 @@ int adc_r8_r8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD_W_CARRY(src_val, dest_val, carry));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Add value from 8-bit register to carry bit and value from address stored at 16-bit register, then store the result in 8-bit register
@@ -148,8 +148,8 @@ int adc_r8_r16mem(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD_W_CARRY(src_val, dest_val, carry));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Adds value in 8 bit register to immediate 8 bit value and carry and stores value in 8-bit register
@@ -170,8 +170,8 @@ int adc_r8_imm8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_ADD(result));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_ADD_W_CARRY(src_val, dest_val, carry));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts value in 2nd 8-bit register from value in 1st 8-bit register and stores the result in the first 8-bit register
@@ -191,8 +191,8 @@ int sub_r8_r8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOp, secondOp));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOp, secondOp));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts value at address stored in 16-bit register from 8-bit register value, then stores result in 8-bit register
@@ -213,8 +213,8 @@ int sub_r8_r16mem(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOp, secondOp));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOp, secondOp));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts 8-bit immediate from value in 8-bit regsiter and stores the result in 8-bit register
@@ -234,8 +234,8 @@ int sub_r8_imm8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOperand, secondOperand));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOperand, secondOperand));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtraction from 8-bit register with carry
@@ -256,8 +256,8 @@ int sbc_r8_r8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts 8-bit value at address stored in 16-bit register with carry then stores the result back
@@ -279,8 +279,8 @@ int sbc_r8_r16mem(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts 8-bit immediate from value in 8-bit register then stores the result in register
@@ -301,8 +301,8 @@ int sbc_r8_imm8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB_W_CARRY(firstOp, secondOp, carry));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts 8-bit register value from 8-bit register value and updates flags
@@ -317,8 +317,8 @@ int cp_r8_r8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOp, secondOp));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOp, secondOp));
 
-    //4 t-cycles
-    return 4;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts value at address stored in 16-bit regstier from 8-bit register and updates flags
@@ -334,8 +334,8 @@ int cp_r8_r16mem(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOp, secondOp));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOp, secondOp));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
 
 //Subtracts 8-bit immediate from value stored in 8-bit register and updates flags
@@ -350,6 +350,6 @@ int cp_r8_imm8(CPU* cpu, Instruction* instruction) {
     updateFlag(cpu, CARRY, CHECK_CARRY_8BIT_SUB(firstOp, secondOp));
     updateFlag(cpu, HALFCARRY, CHECK_HALF_CARRY_8BIT_SUB(firstOp, secondOp));
 
-    //8 t-cycles
-    return 8;
+    //0 extra t-cycles
+    return 0;
 }
