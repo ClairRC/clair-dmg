@@ -26,7 +26,7 @@ typedef struct {
 //Initializes system.
 //Only takes memory pointer since memory is the "indepenent" piece of the system 
 //that everything else uses
-EmulatorSystem* system_init(Memory* memory, DisplayData* display);
+EmulatorSystem* system_init(Memory* memory, SDL_Data* display);
 void tick_hardware(EmulatorSystem* system, uint16_t ticks); //Updates hardware timing
 
 #endif 

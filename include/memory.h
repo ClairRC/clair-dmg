@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "mbc_handler.h"
+#include "game_display.h"
 
 //Memory emulation
 
@@ -74,10 +75,17 @@ typedef struct{
 
     //Other memory flags
     MemoryState state;
+
+    //SDL Data struct
+    //TODO: I'm not sure if I should keep this here,
+    //but since PPU needs access AND it edits joypad values, it seems to make the most sense intuitively
+    SDL_Data* sdl_data;
+    uint8_t button_state;
+    uint8_t dpad_state;
 } Memory;
 
 //Initialize memory
-Memory* memory_init(uint8_t, uint8_t, uint8_t);
+Memory* memory_init(uint8_t, uint8_t, uint8_t, SDL_Data*);
 
 //Destroy memoy
 void memory_destroy(Memory*);
@@ -101,5 +109,6 @@ int wram_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor
 int oam_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor);
 int io_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor);
 int hram_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor);
+void poll_events(Memory* mem);
 
 #endif

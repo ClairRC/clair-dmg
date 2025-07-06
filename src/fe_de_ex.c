@@ -12,7 +12,7 @@ int fe_de_ex(EmulatorSystem* system) {
 
     uint8_t log = 0;
 
-    while (system->ppu->display->running) {
+    while (mem->sdl_data->running) {
         
         handle_interrupt(system); //Handles interrupts if there are any
 
@@ -81,6 +81,16 @@ int fe_de_ex(EmulatorSystem* system) {
                 fprintf(ptr, "Remaining DMA Cycles: %d\n\n", mem->state.remaining_dma_cycles);
             }
         }
+    }
+
+    //If a battery is present, save external RAM
+    if (mem->mbc_chip->has_battery && mem->exram_x != NULL) {
+        //TODO: Placeholder name
+        FILE* save = fopen("a.sav", "wb");
+
+        fwrite((void*)mem->exram_x, 1, mem->mbc_chip->num_exram_banks * 0x2000, save);
+
+        fclose(save);
     }
 
     if (ptr) { fclose(ptr); }

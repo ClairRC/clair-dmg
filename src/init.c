@@ -7,19 +7,26 @@
 #include "hardware_registers.h"
 #include "game_display.h"
 
-#define GAME_NAME "C:/Users/Claire/Desktop/z.gb"
-#define BOOTROM_DIR "C:/Users/Claire/Desktop/boot.bi"
+#define GAME_NAME "C:/Users/Claire/Desktop/tet.gb"
+#define BOOTROM_DIR "C:/Users/Claire/Desktop/boot.bin"
+
+//TODO: Clean this up. It's mostly a placeholder for now
+//In particular, handle SDL stuff a bit better. This should work for now though
+
+void load_save_data(Memory* mem);
 
 int emulator_init() {
     init_opcodes();
     init_hw_registers();
-    Memory* mem = load_rom_data();
+
+    //SDL display data
+    SDL_Data* display = sdl_init(160, 144); //Width and height of Gameboy display
+
+    Memory* mem = load_rom_data(display);
+    load_save_data(mem);
 
     if (mem == NULL)
         return 1;
-
-    //SDL display data
-    DisplayData* display = sdl_init(160, 144); //Width and height of Gameboy display
 
     if (display == NULL) {
         printError("Display is NULL");
@@ -41,7 +48,7 @@ int emulator_init() {
     return success;
 }
 
-Memory* load_rom_data() {
+Memory* load_rom_data(SDL_Data* sdl_data) {
     //For now I will hardcode the file path....
     char* file_path = GAME_NAME; 
     FILE* file_ptr = fopen(file_path, "rb");
@@ -82,7 +89,7 @@ Memory* load_rom_data() {
 
     rewind(file_ptr); //Reset file pointer...
     
-    Memory* mem = memory_init(mbc_type, rom_byte, ram_byte);
+    Memory* mem = memory_init(mbc_type, rom_byte, ram_byte, sdl_data);
 
     printf("MBC TYPE BYTE: %02X\nMBC TYPE:%d\nROM BYTE: %02X\nROM BANKS: %d\nRAM BYTE: %02X\nRAM BANKS: %d\nMODE SWITCH: %d\n",
         mbc_type, mem->mbc_chip->mbc_type,
@@ -152,6 +159,7 @@ int init_cpu_vals(EmulatorSystem* system) {
     system->cpu->registers.L = 0x4D;
     system->cpu->registers.A = 0x01;
 
+    system->memory->io[0x0] = 0xFF;
     system->memory->io[0x05] = 0x0;
     system->memory->io[0x06] = 0x0;
     system->memory->io[0x07] = 0x0;
@@ -160,4 +168,27 @@ int init_cpu_vals(EmulatorSystem* system) {
     system->memory->io[0x47] = 0xFC;
 
     return 0;
+}
+
+//Save battery data (Placeholder for now)
+void load_save_data(Memory* mem) {
+    if (mem->mbc_chip->has_battery && mem->exram_x != NULL) {
+        FILE* save = fopen("a.sav", "rb"); //Placeholder name
+
+        if (save == NULL)
+            return;
+
+        //Get buffer size
+        fseek(save, 0, SEEK_END);
+        uint64_t size = ftell(save);
+        rewind(save);
+
+        if (!fread(mem->exram_x, 1, size, save)) {
+            free(mem);
+            fclose(save);
+            return;
+        }
+
+        fclose(save);
+    }
 }

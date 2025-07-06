@@ -41,11 +41,9 @@ typedef struct {
 
     //PPU state flags
     PPUState state;
-
-    DisplayData* display; //SDL info for displaying
 } PPU;
 
-PPU* ppu_init(Memory* mem, DisplayData* display);
+PPU* ppu_init(Memory* mem);
 void ppu_destroy(PPU* ppu);
 void ppu_oam_scan(PPU* ppu, uint8_t mode_2_time);
 void ppu_write_lcd(PPU* ppu, uint16_t mode_3_time);

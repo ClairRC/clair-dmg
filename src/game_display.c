@@ -1,13 +1,14 @@
 #include "game_display.h"
 #include "logging.h"
 
+
 #define SCALE 4
 
 
 //Setup SDL Window
-DisplayData* sdl_init(int screen_width, int screen_height) {
+SDL_Data* sdl_init(int screen_width, int screen_height) {
 	//Create display data pointer...
-	DisplayData* dis = (DisplayData*)malloc(sizeof(DisplayData));
+	SDL_Data* dis = (SDL_Data*)malloc(sizeof(SDL_Data));
 
 	if (!dis) {
 		printError("Failed to initialize SDL");
@@ -36,11 +37,13 @@ DisplayData* sdl_init(int screen_width, int screen_height) {
 	dis->running = 1;
 	dis->height = screen_height;
 	dis->width = screen_width;
+	dis->time_counter = 0; //Start this at 0...
+	dis->frame_rate = 59.73;
 
 	return dis;
 }
 
-void sdl_destroy(DisplayData* display) {
+void sdl_destroy(SDL_Data* display) {
 	if (display == NULL)
 		return;
 
@@ -50,15 +53,27 @@ void sdl_destroy(DisplayData* display) {
 	SDL_Quit();
 }
 
-void draw_buffer(DisplayData* display, uint32_t* framebuffer) {
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		if (e.type == SDL_QUIT)
-			display->running = 0;
-	}
-
+void draw_buffer(SDL_Data* display, uint32_t* framebuffer) {
 	SDL_UpdateTexture(display->texture, NULL, framebuffer, display->width * sizeof(uint32_t));
 	SDL_RenderClear(display->renderer);
 	SDL_RenderCopy(display->renderer, display->texture, NULL, NULL);
 	SDL_RenderPresent(display->renderer);
+	
+	uint64_t start = display->time_counter;
+	uint64_t end = SDL_GetPerformanceCounter();
+
+	//If framerate is -1, that means unlimited fps
+	//Otherwise, delay till the end of the frame in terms of real time
+	if (display->frame_rate != -1) {
+		double elapsed_ms = (end - start) * 1000.0 * (1.0 / SDL_GetPerformanceFrequency());
+		double target_frame_time = (1000.0 / display->frame_rate);
+
+		//printf("frame time: %.2f\n", elapsed_ms);
+
+		if (elapsed_ms < target_frame_time) {
+			SDL_Delay((Uint32)(target_frame_time - elapsed_ms));
+		}
+	}
+
+	display->time_counter = SDL_GetPerformanceCounter();
 }

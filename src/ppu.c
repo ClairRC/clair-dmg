@@ -28,7 +28,7 @@
 #define PALETTE_DARK_GRAY 0x555555
 #define PALETTE_BLACK 0x000000
 
-PPU* ppu_init(Memory* mem, DisplayData* display) {
+PPU* ppu_init(Memory* mem) {
     PPU* ppu = (PPU*)malloc(sizeof(PPU));
 
     if (ppu == NULL) {
@@ -59,8 +59,6 @@ PPU* ppu_init(Memory* mem, DisplayData* display) {
     ppu->dmg_palette[2] = PALETTE_DARK_GRAY;
     ppu->dmg_palette[3] = PALETTE_BLACK;
 
-    ppu->display = display;
-
     return ppu;
 }
 
@@ -75,7 +73,8 @@ void ppu_destroy(PPU* ppu) {
 
 //Draws frame buffer to screen
 void draw(PPU* ppu) {
-    draw_buffer(ppu->display, ppu->framebuffer);
+    draw_buffer(ppu->memory->sdl_data, ppu->framebuffer);
+    poll_events(ppu->memory);
 }
 
 //Does OAM scan
@@ -395,7 +394,7 @@ int visible_obj_index(PPU* ppu, uint16_t mode_3_time) {
 void switch_mode_0_1(PPU* ppu) {
     //If we just started vblank, request interrupt now
     requestInterrupt(INTERRUPT_VBLANK, ppu->memory);
-    
+
     ppu->state.window_ly = 0; //Reset internal window counter
     ppu->memory->state.current_ppu_mode = PPU_MODE_1; //Update PPU mode
 }

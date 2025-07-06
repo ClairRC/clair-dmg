@@ -6,7 +6,7 @@
 #include "hardware_registers.h"
 #include "mbc_handler.h"
 
-Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_byte) {
+Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_byte, SDL_Data* sdl_data) {
     Memory* mem = (Memory*)malloc(sizeof(Memory));
     
     //if Initialization failes, return NULL
@@ -14,6 +14,9 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
         printError("Failed to initialize memory.");
         return NULL;
     }
+
+    //SDL struct
+    mem->sdl_data = sdl_data;
 
     //Get MBC chip
     MBC* mbc_chip = mbc_init(mbc_type, rom_size_byte, ram_size_byte);
@@ -69,6 +72,11 @@ Memory* memory_init(uint8_t mbc_type, uint8_t rom_size_byte, uint8_t ram_size_by
     //Current wram bank
     mem->state.current_wram_bank = 1; //Always 1 on DMG. Not related to MBC
    
+
+    //TODO: Refactor input stuff
+    //Start with no buttons pressed
+    mem->button_state = 0x0F;
+    mem->dpad_state = 0x0F;
     return mem;
 }
 
@@ -90,8 +98,10 @@ void memory_destroy(Memory* mem) {
 uint8_t mem_read(Memory* mem, uint16_t address, Accessor accessor) {
     uint8_t result = 0xFF; //Default value
 
-    if (address == 0xFF00)
-        return result;
+    //TODO: Remove this
+    //if (address == 0xFF00)
+        //printf("");
+        //return result;
 
     //Call correct function based on memory area
     if (address >= 0x0000 && address <= 0x7FFF)
@@ -394,6 +404,7 @@ uint8_t io_read(Memory* mem, uint16_t address, Accessor accessor) {
 
     //Apply bitmask to hardware registers
     uint8_t val = mem->io[index];
+
     HardwareRegister hw_reg = hw_registers[(uint8_t)address]; //Gets hardware register from LSB
     if (hw_reg.cgb_only) {
         printError("Read attempted from CGB only hardware register");
@@ -402,6 +413,26 @@ uint8_t io_read(Memory* mem, uint16_t address, Accessor accessor) {
 
     //Bits with a 0 are write-only, so this forces those bits to be set as 1, which is correct behavior for this
     val |= ~hw_reg.read_mask;
+
+    //TODO: Fix input stuff..
+    //Currently, the goal is to store the button state at the end of the frame,
+    //then when this is read return the correct state based on the selector bit.
+    //This should work?
+    if (address == 0xFF00) {
+        uint8_t joypad_state = 0x0;
+
+        //Read buttons
+        if (!(mem->io[0x0] & 1 << 4)) {
+            joypad_state |= mem->dpad_state;
+        }
+
+        if (!(mem->io[0x0] & 1 << 5)) {
+            joypad_state |= mem->button_state;
+        }
+
+        //Keep top nibble, replace bottom nibble with button inputs
+        val = (val & 0xF0) | joypad_state;
+    }
 
     return val;
 }
@@ -419,7 +450,7 @@ int io_write(Memory* mem, uint16_t address, uint8_t new_val, Accessor accessor) 
     }
 
     //Bits with a 0 are read-only, so this forces those bits to not be updated, which is correct behavior for this
-    new_val &= (new_val & hw_reg.write_mask) | (old_val & ~hw_reg.write_mask);
+    new_val = (new_val & hw_reg.write_mask) | (old_val & ~hw_reg.write_mask);
 
     /*
     * Edge cases
@@ -470,4 +501,93 @@ int hram_write(Memory* mem, uint16_t address, uint8_t new_val,  Accessor accesso
     mem->hram[index] = new_val;
 
     return 0;
+}
+
+void save_state(Memory* mem);
+void load_state(Memory* mem);
+
+//Polls SDL events
+//TODO: This should NOT be in this file but I haven't thought of how to organize it logically so I'm keeping
+//it here for now JUST for testing and what not
+void poll_events(Memory* mem) {
+    SDL_Data* sdl = mem->sdl_data;
+    uint8_t button_state = mem->button_state;
+    uint8_t dpad_state = mem->dpad_state;
+
+    SDL_Event e;
+
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT)
+            sdl->running = 0;
+
+        if (e.type == SDL_KEYDOWN) {
+            //A button
+            if (e.key.keysym.sym == SDLK_z)
+                button_state &= ~(1 << 0);
+            //B button
+            if (e.key.keysym.sym == SDLK_x)
+                button_state &= ~(1 << 1);
+            //Select
+            if (e.key.keysym.sym == SDLK_RSHIFT)
+                button_state &= ~(1 << 2);
+            //Start
+            if (e.key.keysym.sym == SDLK_RETURN)
+                button_state &= ~(1 << 3);
+
+
+            //Right
+            if (e.key.keysym.sym == SDLK_RIGHT)
+                dpad_state &= ~(1 << 0);
+            //Left
+            if (e.key.keysym.sym == SDLK_LEFT)
+                dpad_state &= ~(1 << 1);
+            //Up
+            if (e.key.keysym.sym == SDLK_UP)
+                dpad_state &= ~(1 << 2);
+            //Down
+            if (e.key.keysym.sym == SDLK_DOWN)
+                dpad_state &= ~(1 << 3);
+
+            //Toggle unlimited FPS
+            //TODO: fix this lowkey
+            if (e.key.keysym.sym == SDLK_SPACE) {
+                if (mem->sdl_data->frame_rate == -1)
+                    mem->sdl_data->frame_rate = 59.73;
+                else
+                    mem->sdl_data->frame_rate = -1;
+            }
+        }
+
+        if (e.type == SDL_KEYUP) {
+            //A button
+            if (e.key.keysym.sym == SDLK_z)
+                button_state |= (1 << 0);
+            //B button
+            if (e.key.keysym.sym == SDLK_x)
+                button_state |= (1 << 1);
+            //Select
+            if (e.key.keysym.sym == SDLK_RSHIFT)
+                button_state |= (1 << 2);
+            //Start
+            if (e.key.keysym.sym == SDLK_RETURN)
+                button_state |= (1 << 3);
+
+
+            //Right
+            if (e.key.keysym.sym == SDLK_RIGHT)
+                dpad_state |= (1 << 0);
+            //Left
+            if (e.key.keysym.sym == SDLK_LEFT)
+                dpad_state |= (1 << 1);
+            //Up
+            if (e.key.keysym.sym == SDLK_UP)
+                dpad_state |= (1 << 2);
+            //Down
+            if (e.key.keysym.sym == SDLK_DOWN)
+                dpad_state |= (1 << 3);
+        }
+    }
+
+    mem->button_state = button_state & 0x0F;
+    mem->dpad_state = dpad_state & 0x0F;
 }

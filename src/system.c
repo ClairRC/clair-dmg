@@ -2,7 +2,7 @@
 #include "system.h" 
 #include "logging.h"
 
-EmulatorSystem* system_init(Memory* memory, DisplayData* display) {
+EmulatorSystem* system_init(Memory* memory, SDL_Data* display) {
     EmulatorSystem* system = malloc(sizeof(EmulatorSystem));
     if (system == NULL) {
         printError("Error intializing Emulator...");
@@ -54,6 +54,7 @@ void tick_hardware(EmulatorSystem* system, uint16_t ticks) {
         //Add to system time and update elapsed_ticks
         ++system->sys_clock->system_time;
         ++system->sys_clock->frame_time;
+
         ++elapsed_ticks;
     }
 }

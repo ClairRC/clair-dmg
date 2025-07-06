@@ -15,10 +15,13 @@ typedef struct {
 	uint8_t running;
 	int width;
 	int height;
-} DisplayData;
 
-DisplayData* sdl_init(int, int);
-void sdl_destroy(DisplayData*);
-void draw_buffer(DisplayData*, uint32_t*);
+	float frame_rate;
+	uint64_t time_counter; //Used for framerate stuff. Probably belongs elsewhere? Maybe not?
+} SDL_Data;
+
+SDL_Data* sdl_init(int, int);
+void sdl_destroy(SDL_Data*);
+void draw_buffer(SDL_Data*, uint32_t*);
 
 #endif 

@@ -66,11 +66,11 @@ typedef enum {
 //Specifices the specific base MBC (Memory Banking Control) type
 //TODO: Implement the rest of these
 typedef enum {
-    MBC_NONE,
-    MBC_1,
-    MBC_2,
-    MBC_3,
-    MBC_5
+    MBC_NONE = 0,
+    MBC_1 = 1,
+    MBC_2 = 2,
+    MBC_3 = 3,
+    MBC_5 = 5
 } MBC_Type;
 
 #endif
