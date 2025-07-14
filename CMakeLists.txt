@@ -1,34 +1,22 @@
 # SETUP
 cmake_minimum_required(VERSION 3.10)
-project(GameBoyEmulatorIDKTheName)
+project(ClairDMG)
 
 # Set C Standard
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Include path
-include_directories(${CMAKE_SOURCE_DIR}/include)
+# Get SDL2 library 
+find_package(SDL2 REQUIRED)
+
+# Include paths
+include_directories(${CMAKE_SOURCE_DIR}/include ${SDL2_INCLUDE_DIRS})
 
 # Get Library Source Files
 file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src/*.c)
-list(REMOVE_ITEM SOURCES ${CMAKE_SOURCE_DIR}/src/logging.c)
-list(REMOVE_ITEM SOURCES ${CMAKE_SOURCE_DIR}/src/main.c)
-
-# Create library for files for reuse with tests
-add_library(emu_lib ${SOURCES} "include/game_display.h" "src/game_display.c" "src/master_clock.c")
 
 # Main Executable
-add_executable(main ${CMAKE_SOURCE_DIR}/src/main.c ${CMAKE_SOURCE_DIR}/src/logging.c "include/game_display.h" "src/game_display.c" "src/master_clock.c")
-target_link_libraries(main emu_lib)
+add_executable(clair-dmg ${SOURCES})
 
-# Unit Tests
-file(GLOB_RECURSE TESTS ${CMAKE_SOURCE_DIR}/tests/*.c)
-
-foreach(test ${TESTS})
-    get_filename_component(test_name ${test} NAME_WE)
-    add_executable(${test_name} ${test} ${CMAKE_SOURCE_DIR}/src/logging.c "include/game_display.h" "src/game_display.c" "src/master_clock.c")
-    target_link_libraries(${test_name} emu_lib)
-    set_target_properties(${test_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY 
-        ${CMAKE_BINARY_DIR}/tests)
-    target_compile_definitions(${test_name} PUBLIC SUPPRESS_ERROR_OUTPUT)
-endforeach()
+# Link libraries
+target_link_libraries(clair-dmg ${SDL2_LIBRARIES})

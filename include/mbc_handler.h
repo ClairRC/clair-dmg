@@ -11,13 +11,20 @@
 * setup and all that. Annoyingly this means I need ANOTHER lookup table..
 */
 
-//Stores information regarding memory banking
+//Holds the bytes for mbc type, rom size, ram size from cartridge header
 typedef struct {
-    //Metadata info from cartridge header
-    MBC_Type mbc_type;
     uint8_t mbc_type_byte;
     uint8_t mbc_rom_size_byte;
     uint8_t mbc_ram_size_byte;
+} MBC_Data;
+
+//Stores information regarding memory banking
+typedef struct {
+    //Metadata info from cartridge header
+    MBC_Data* mbc_data;
+
+    //MBC flags
+    MBC_Type mbc_type;
     uint8_t has_mode_switch; //MBC1 specific
     uint8_t has_battery;
     uint8_t has_rtc; //Whether or not this has a real time clock
@@ -32,7 +39,7 @@ typedef struct {
 } MBC;
 
 //Sets up MBC chip information
-MBC* mbc_init(uint8_t, uint8_t, uint8_t);
+MBC* mbc_init(MBC_Data* data);
 void mbc_destroy(MBC*);
 
 //Determines current bank

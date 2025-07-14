@@ -7,9 +7,14 @@
 //Initializes CPU and its components.
 //There should only ever be one of these
 //TODO: Make init function work better with memory as PPU and DMA share same memory
-CPU* cpu_init(Memory* memory) {
+CPU* cpu_init(MemoryBus* bus) {
+    if (bus == NULL) {
+        printError("Error: Unable to initialize CPU");
+        return NULL;
+    }
+
     RegisterFile rf = {0};
-    CPUState cpu_state = {0};
+    LocalCPUState cpu_state = {0};
     CPU* cpu = (CPU*)malloc(sizeof(CPU));
 
     //If memory isn't allocated, return an error
@@ -20,15 +25,13 @@ CPU* cpu_init(Memory* memory) {
 
     cpu->registers = rf;
     cpu->state = cpu_state;
-    cpu->memory = memory;
+    cpu->bus = bus;
 
     return cpu;
 }
 
 //Function to destroy CPU to prevent memory leaks.
 void cpu_destroy(CPU* cpu) {
-    memory_destroy(cpu->memory);
-    
     if (cpu != NULL)
         free(cpu);
 }
@@ -176,7 +179,6 @@ int setRegisterValue(CPU* cpu, Registers reg, uint16_t value) {
 
         //Special registers
         //Some registers can be merged together to store 16 bit values
-        //I don't THINK AF is ever treated this way, but I'm keeping this just in case
         case REG_AF:
             cpu->registers.A = (uint8_t)(value>>8);
             cpu->registers.F = (uint8_t)value & 0xF0;

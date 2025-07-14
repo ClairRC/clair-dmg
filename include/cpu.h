@@ -1,7 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 #include <stdint.h>
-#include "memory.h"
+#include "memory_bus.h"
 
 //Register file struct
 typedef struct {
@@ -18,27 +18,21 @@ typedef struct {
 } RegisterFile;
 
 //Struct for some special CPU flags
+//CPU owns its own state because nothing else needs to know about it
 typedef struct {
     int IME; //Master interrupt enable
     int enableIME; //EI instruction is delayed by 1 instruction, so this tracks that state
     int isHalted; //Checks if CPU is currently in HALT mode
     int halt_bug; //Bug that skips first byte after halt is exited based on interrupt flags
-} CPUState;
-
-//CPU struct
-/*
-* TODO:
-* Add T-Cycle and M-Cycle implementation
-* Add and initialize "memory bus" (pointer to memory)
-*/
+} LocalCPUState;
 
 typedef struct {
     RegisterFile registers;
-    CPUState state;
-    Memory* memory;
+    LocalCPUState state;
+    MemoryBus* bus;
 } CPU;
 
-CPU* cpu_init(Memory*);
+CPU* cpu_init(MemoryBus*);
 void cpu_destroy(CPU*);
 uint16_t getRegisterValue16(CPU*, Registers);
 uint8_t getRegisterValue8(CPU*, Registers);

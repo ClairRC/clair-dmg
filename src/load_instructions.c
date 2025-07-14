@@ -3,8 +3,8 @@
 //Loads 16-bit immediate from memory into 16-bit register
 int ld_r16_imm16(CPU* cpu, Instruction* instruction) {
     //Get immediate from memory
-    uint8_t src_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t src_msb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_msb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
 
     //Store in register
     setRegisterValue(cpu, instruction->first_operand, UNSIGNED_16(src_lsb, src_msb));
@@ -20,7 +20,7 @@ int ld_r16mem_r8(CPU* cpu, Instruction* instruction) {
     uint8_t src_val = getRegisterValue8(cpu, instruction->second_operand);
 
     //Write byte from r8 into address at r16
-    mem_write(cpu->memory, dest_address, src_val, CPU_ACCESS);
+    mem_write(cpu->bus, dest_address, src_val, CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -29,7 +29,7 @@ int ld_r16mem_r8(CPU* cpu, Instruction* instruction) {
 //Loads 8-bit immediate from memory into 8-bit register
 int ld_r8_imm8(CPU* cpu, Instruction* instruction) {
     //Get immediate from memory
-    uint8_t src_val = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
 
     //Store value in register
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -42,10 +42,10 @@ int ld_r8_imm8(CPU* cpu, Instruction* instruction) {
 int ld_r16mem_imm8(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t dest_address = getRegisterValue16(cpu, instruction->first_operand); //from register
-    uint8_t src_val = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS); //From memory
+    uint8_t src_val = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS); //From memory
 
     //Writes value
-    mem_write(cpu->memory, dest_address, src_val, CPU_ACCESS);
+    mem_write(cpu->bus, dest_address, src_val, CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -54,14 +54,14 @@ int ld_r16mem_imm8(CPU* cpu, Instruction* instruction) {
 //Loads value from 16-bit register into 16-bit immediate address
 int ld_mem_r16(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t dest_address_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t dest_address_msb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t dest_address_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t dest_address_msb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
     uint16_t dest_address = UNSIGNED_16(dest_address_lsb, dest_address_msb);
     uint16_t src_val = getRegisterValue16(cpu, instruction->first_operand);
 
     //Write values
-    mem_write(cpu->memory, dest_address++, GET_LSB(src_val), CPU_ACCESS);
-    mem_write(cpu->memory, dest_address, GET_MSB(src_val), CPU_ACCESS);
+    mem_write(cpu->bus, dest_address++, GET_LSB(src_val), CPU_ACCESS);
+    mem_write(cpu->bus, dest_address, GET_MSB(src_val), CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -73,7 +73,7 @@ int ld_r8_r16mem(CPU* cpu, Instruction* instruction) {
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
     
     //Store value
-    setRegisterValue(cpu, instruction->first_operand, mem_read(cpu->memory, src_address, CPU_ACCESS));
+    setRegisterValue(cpu, instruction->first_operand, mem_read(cpu->bus, src_address, CPU_ACCESS));
 
     //0 extra t-cycles
     return 0;
@@ -94,9 +94,9 @@ int ld_r8_r8(CPU* cpu, Instruction* instruction) {
 //Loads value from immediate address into 8-bit register
 int ld_r8_mem(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t src_address_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t src_address_msb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t src_val = mem_read(cpu->memory, UNSIGNED_16(src_address_lsb, src_address_msb), CPU_ACCESS);
+    uint8_t src_address_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_address_msb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, UNSIGNED_16(src_address_lsb, src_address_msb), CPU_ACCESS);
 
     //Store value
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -108,12 +108,12 @@ int ld_r8_mem(CPU* cpu, Instruction* instruction) {
 //Loads value from 8 bit register into 16-bit immediate address
 int ld_mem_r8(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t dest_address_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t dest_address_msb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t dest_address_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t dest_address_msb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
     uint8_t src_val = getRegisterValue8(cpu, instruction->first_operand);
 
     //Set value
-    mem_write(cpu->memory, UNSIGNED_16(dest_address_lsb, dest_address_msb), src_val, CPU_ACCESS);
+    mem_write(cpu->bus, UNSIGNED_16(dest_address_lsb, dest_address_msb), src_val, CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -134,7 +134,7 @@ int ld_r16_r16(CPU* cpu, Instruction* instruction) {
 //Loads sp + signed 8-bit value into 16-bit register
 int ld_r16_imm8s(CPU* cpu, Instruction* instruction) {
     //Get values
-    int8_t src_offset = (int8_t)(mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS));
+    int8_t src_offset = (int8_t)(mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS));
     uint16_t src_val = cpu->registers.sp + src_offset;
 
     //Store value
@@ -159,7 +159,7 @@ int ld_r16meminc_r8(CPU* cpu, Instruction* instruction) {
     uint8_t src_val = getRegisterValue8(cpu, instruction->second_operand);
 
     //Set value
-    mem_write(cpu->memory, dest_address, src_val, CPU_ACCESS);
+    mem_write(cpu->bus, dest_address, src_val, CPU_ACCESS);
 
     //Increment register
     setRegisterValue(cpu, instruction->first_operand, dest_address + 1);
@@ -175,7 +175,7 @@ int ld_r16memdec_r8(CPU* cpu, Instruction* instruction) {
     uint8_t src_val = getRegisterValue8(cpu, instruction->second_operand);
 
     //Set value
-    mem_write(cpu->memory, dest_address, src_val, CPU_ACCESS);
+    mem_write(cpu->bus, dest_address, src_val, CPU_ACCESS);
 
     //Decrement register
     setRegisterValue(cpu, instruction->first_operand, dest_address - 1);
@@ -188,7 +188,7 @@ int ld_r16memdec_r8(CPU* cpu, Instruction* instruction) {
 int ld_r8_r16meminc(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t src_val = mem_read(cpu->memory, src_address, CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, src_address, CPU_ACCESS);
 
     //Store value
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -204,7 +204,7 @@ int ld_r8_r16meminc(CPU* cpu, Instruction* instruction) {
 int ld_r8_r16memdec(CPU* cpu, Instruction* instruction) {
     //Get values
     uint16_t src_address = getRegisterValue16(cpu, instruction->second_operand);
-    uint8_t src_val = mem_read(cpu->memory, src_address, CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, src_address, CPU_ACCESS);
 
     //Store value
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -219,11 +219,11 @@ int ld_r8_r16memdec(CPU* cpu, Instruction* instruction) {
 //Loads value from 8-bit register into memory address at 0xFF00 + 8-bit immediate
 int ldh_mem_r8(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t dest_address_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t dest_address_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
     uint8_t src_val = getRegisterValue8(cpu, instruction->first_operand);
 
     //Write value
-    mem_write(cpu->memory, UNSIGNED_16(dest_address_lsb, 0xFF), src_val, CPU_ACCESS);
+    mem_write(cpu->bus, UNSIGNED_16(dest_address_lsb, 0xFF), src_val, CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -232,8 +232,8 @@ int ldh_mem_r8(CPU* cpu, Instruction* instruction) {
 //Loads value from memory at 0xFF00 + 8-bit immediate into 8-bit register
 int ldh_r8_mem(CPU* cpu, Instruction* instruction) {
     //Get values
-    uint8_t src_address_lsb = mem_read(cpu->memory, cpu->registers.pc++, CPU_ACCESS);
-    uint8_t src_val = mem_read(cpu->memory, UNSIGNED_16(src_address_lsb, 0xFF), CPU_ACCESS);
+    uint8_t src_address_lsb = mem_read(cpu->bus, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, UNSIGNED_16(src_address_lsb, 0xFF), CPU_ACCESS);
 
     //Set value
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -249,7 +249,7 @@ int ldh_r8mem_r8(CPU* cpu, Instruction* instruction) {
     uint8_t dest_address_lsb = getRegisterValue8(cpu, instruction->first_operand);
 
     //Write value
-    mem_write(cpu->memory, UNSIGNED_16(dest_address_lsb, 0xFF), src_val, CPU_ACCESS);
+    mem_write(cpu->bus, UNSIGNED_16(dest_address_lsb, 0xFF), src_val, CPU_ACCESS);
 
     //0 extra t-cycles
     return 0;
@@ -259,7 +259,7 @@ int ldh_r8mem_r8(CPU* cpu, Instruction* instruction) {
 int ldh_r8_r8mem(CPU* cpu, Instruction* instruction) {
     //Get values
     uint8_t src_address_lsb = getRegisterValue8(cpu, instruction->second_operand);
-    uint8_t src_val = mem_read(cpu->memory, UNSIGNED_16(src_address_lsb, 0xFF), CPU_ACCESS);
+    uint8_t src_val = mem_read(cpu->bus, UNSIGNED_16(src_address_lsb, 0xFF), CPU_ACCESS);
 
     //Write value
     setRegisterValue(cpu, instruction->first_operand, src_val);
@@ -274,8 +274,8 @@ int push(CPU* cpu, Instruction* instruction) {
     uint16_t src_val = getRegisterValue16(cpu, instruction->first_operand);
 
     //Write value onto stack
-    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_MSB(src_val), CPU_ACCESS)) { --cpu->registers.sp; }
-    if (!mem_write(cpu->memory, cpu->registers.sp - 1, GET_LSB(src_val), CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->bus, cpu->registers.sp - 1, GET_MSB(src_val), CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->bus, cpu->registers.sp - 1, GET_LSB(src_val), CPU_ACCESS)) { --cpu->registers.sp; }
 
     //0 extra t-cycles
     return 0;
@@ -284,8 +284,8 @@ int push(CPU* cpu, Instruction* instruction) {
 //Pops value off stack into 16-bit register
 int pop(CPU* cpu, Instruction* instruction) {
     //Get values from stack
-    uint8_t src_val_lsb = mem_read(cpu->memory, cpu->registers.sp++, CPU_ACCESS);
-    uint8_t src_val_msb = mem_read(cpu->memory, cpu->registers.sp++, CPU_ACCESS);
+    uint8_t src_val_lsb = mem_read(cpu->bus, cpu->registers.sp++, CPU_ACCESS);
+    uint8_t src_val_msb = mem_read(cpu->bus, cpu->registers.sp++, CPU_ACCESS);
 
     //Write values
     setRegisterValue(cpu, instruction->first_operand, UNSIGNED_16(src_val_lsb, src_val_msb));

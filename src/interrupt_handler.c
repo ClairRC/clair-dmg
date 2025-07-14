@@ -10,36 +10,36 @@ void serviceInterrupt(CPU* cpu) {
     uint8_t pc_lsb = (uint8_t)(cpu->registers.pc);
     uint8_t pc_msb = (uint8_t)(cpu->registers.pc >> 8);
 
-    if (!mem_write(cpu->memory, cpu->registers.sp - 1, pc_msb, CPU_ACCESS)) { --cpu->registers.sp; }
-    if (!mem_write(cpu->memory, cpu->registers.sp - 1, pc_lsb, CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->bus, cpu->registers.sp - 1, pc_msb, CPU_ACCESS)) { --cpu->registers.sp; }
+    if (!mem_write(cpu->bus, cpu->registers.sp - 1, pc_lsb, CPU_ACCESS)) { --cpu->registers.sp; }
 
     //Default value in case SOMEHOW this function is called when an interrupt is not actually pending, so no jump will happen
     uint16_t target_address = 0x0;
 
     //Gets highest priority interrupt address and clears pending interrupt
-    if (interruptPending(INTERRUPT_VBLANK, cpu->memory)) {
+    if (interruptPending(INTERRUPT_VBLANK, cpu->bus->memory)) {
         target_address = 0x40;
-        clearInterrupt(INTERRUPT_VBLANK, cpu->memory);
+        clearInterrupt(INTERRUPT_VBLANK, cpu->bus->memory);
     }
 
-    else if (interruptPending(INTERRUPT_LCD, cpu->memory)) {
+    else if (interruptPending(INTERRUPT_LCD, cpu->bus->memory)) {
         target_address = 0x48;
-        clearInterrupt(INTERRUPT_LCD, cpu->memory);
+        clearInterrupt(INTERRUPT_LCD, cpu->bus->memory);
     }
 
-    else if (interruptPending(INTERRUPT_TIMER, cpu->memory)) {
+    else if (interruptPending(INTERRUPT_TIMER, cpu->bus->memory)) {
         target_address = 0x50;
-        clearInterrupt(INTERRUPT_TIMER, cpu->memory);
+        clearInterrupt(INTERRUPT_TIMER, cpu->bus->memory);
     }
 
-    else if (interruptPending(INTERRUPT_SERIAL, cpu->memory)) {
+    else if (interruptPending(INTERRUPT_SERIAL, cpu->bus->memory)) {
         target_address = 0x58;
-        clearInterrupt(INTERRUPT_SERIAL, cpu->memory);
+        clearInterrupt(INTERRUPT_SERIAL, cpu->bus->memory);
     }
 
-    else if (interruptPending(INTERRUPT_JOYPAD, cpu->memory)) {
+    else if (interruptPending(INTERRUPT_JOYPAD, cpu->bus->memory)) {
         target_address = 0x60;
-        clearInterrupt(INTERRUPT_JOYPAD, cpu->memory);
+        clearInterrupt(INTERRUPT_JOYPAD, cpu->bus->memory);
     }
 
     clearFlag(cpu, IME); //Reset IME

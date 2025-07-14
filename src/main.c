@@ -1,8 +1,12 @@
 #include "init.h"
+#include "logging.h"
 
 //Simply initializes current emulator for now..
 int main() {
     int success = emulator_init();
 
-    return 0;
+    if (success == 1)
+        printError("Initialization failed");
+
+    return success;
 }

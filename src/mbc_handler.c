@@ -6,22 +6,23 @@
 MBC_Type getMBCType(uint8_t type);
 uint8_t getNumRAMBanks(uint8_t ram);
 
-MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
-    MBC* mbc = (MBC*) malloc(sizeof(MBC));
-
-    //Check for null ptr
-    if (mbc == NULL) {
-        printError("Failed to initialize MBC chip");
+MBC* mbc_init(MBC_Data* mbc_data) {
+    if (mbc_data == NULL) {
+        printError("Error intializing MBC");
         return NULL;
     }
 
-    //MBC chip metadata (mostly for debugging but not necessarily needed)
-    mbc->mbc_type_byte = type_byte;
-    mbc->mbc_rom_size_byte = rom_byte;
-    mbc->mbc_ram_size_byte = ram_byte;
+    MBC* mbc = (MBC*)malloc(sizeof(MBC));
+
+    if (mbc == NULL) {
+        printError("Error initialzing MBC");
+        return NULL;
+    }
+
+    mbc->mbc_data = mbc_data;
 
     //Get MBC chip type
-    mbc->mbc_type = getMBCType(type_byte);
+    mbc->mbc_type = getMBCType(mbc_data->mbc_type_byte);
 
     /*
     * Default MBC Values
@@ -39,6 +40,10 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
      * Get general MBC Information
      */
     
+    uint8_t type_byte = mbc_data->mbc_type_byte;
+    uint8_t rom_byte = mbc_data->mbc_rom_size_byte;
+    uint8_t ram_byte = mbc_data->mbc_ram_size_byte;
+
     //Battery MBCs
     if (type_byte == 0x3 || type_byte == 0x6 || type_byte == 0xF ||
         type_byte == 0x1B || type_byte == 0x1E)
@@ -59,17 +64,15 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
     switch (mbc->mbc_type) {
         case MBC_NONE:
             //Since no MBC has no bank switching, there is always just bank 0 and 1, and the area for the switchable bank is just static
-            //TODO: Confirm that there is always at least 2 ROM banks even with no MBC
             mbc->current_rom_bank = 1;
             if (mbc->num_exram_banks > 0) { mbc->exram_enabled = 1; } //SOME no mbc cartridges have RAM, in which case it is just static addresses
             break;
 
         case MBC_1:
             //MBC1 cartridges with less than 1MiB of memory allow for a "more ROM" or "more RAM" mode
-            //TODO: Figure out how this works
-            if (/*rom_byte < 0x5*/1) { mbc->has_mode_switch = 1; }
+            //TODO: Confirm the whole "less than 1MiB" thing
+            mbc->has_mode_switch = 1;
             mbc->mbc_mode = 0; //MBC1 specific. Starts at 0 by default
-            //TODO: Confirm if the thing below is true for all MBCs? Not super sure..
             mbc->current_rom_bank = 1; //MBC1 treats bank 0 as 1, so this starts at 1
             break;
 
@@ -82,8 +85,13 @@ MBC* mbc_init(uint8_t type_byte, uint8_t rom_byte, uint8_t ram_byte) {
 
 //Frees MBC memory
 void mbc_destroy(MBC* mbc) {
-    if (mbc != NULL)
-        free(mbc);
+    if (mbc == NULL)
+        return;
+    
+    if (mbc->mbc_data != NULL)
+        free(mbc->mbc_data);
+
+    free(mbc);
 }
 
 //Updates MBC information with address and values written to
@@ -136,7 +144,6 @@ void update_mbc1_data(MBC* mbc, uint16_t address, uint8_t value) {
         uint8_t current = mbc->current_rom_bank;
 
        
-        //This is probably the issue..
         //Preserves top 3 bits of the current bank and replaces the bottom 5
         current &= 0x60; //Preserves bits 6 and 7 (BANK2)
         current |= value & 0x1F; //Sets bottom 5 bits (BANK1)
@@ -171,8 +178,6 @@ void update_mbc1_data(MBC* mbc, uint16_t address, uint8_t value) {
         current |= (value & 0x03) << 5; //Sets upper 3 bits (BANK2)
         current %= mbc->num_rom_banks;
 
-        //Only sets the bank if the cartridge has enough banks
-        //TODO: This MIGHT be false, it might wrap around?
         mbc->current_rom_bank = current;
     }
 

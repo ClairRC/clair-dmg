@@ -1,20 +1,18 @@
 #include "fe_de_ex.h" 
-#include "hardware.h"
 #include "interrupt_handler.h"
 #include "master_clock.h"
 
 //Begins instruction loop and handles all of that fun stuff...
 int fe_de_ex(EmulatorSystem* system) {
     CPU* cpu = system->cpu;
-    Memory* mem = system->memory;
+    MemoryBus* bus = system->bus;
 
     FILE* ptr = fopen("C:/Users/Claire/Desktop/logfile.txt", "w");
 
     uint8_t log = 0;
 
-    while (mem->sdl_data->running) {
-        
-        handle_interrupt(system); //Handles interrupts if there are any
+    while (system->system_state->running) {
+        check_interrupt(system); //Handles interrupts if there are any
 
         //If EI was called, enable IME now...
         if (cpu->state.enableIME) {
@@ -43,7 +41,7 @@ int fe_de_ex(EmulatorSystem* system) {
 
         RegisterFile r = cpu->registers;
         
-        uint16_t target_pc_start = 0x150;
+        uint16_t target_pc_start = 0x100;
         uint16_t target_pc_end = 0xFFFF;
 
         if (r.pc == target_pc_start)
@@ -56,39 +54,35 @@ int fe_de_ex(EmulatorSystem* system) {
         if (!cpu->state.isHalted && yes) {
             if (log) {
                fprintf(ptr, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
-                    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->memory, r.pc, PPU_ACCESS), mem_read(cpu->memory, r.pc + 1, PPU_ACCESS), mem_read(cpu->memory, r.pc + 2, PPU_ACCESS), mem_read(cpu->memory, r.pc + 3, PPU_ACCESS)
+                    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->bus, r.pc, PPU_ACCESS), mem_read(cpu->bus, r.pc + 1, PPU_ACCESS), mem_read(cpu->bus, r.pc + 2, PPU_ACCESS), mem_read(cpu->bus, r.pc + 3, PPU_ACCESS)
                 );
             }
 
             if (0) {
-                uint8_t opcode = mem_read(cpu->memory, r.pc, PPU_ACCESS);
+                uint8_t opcode = mem_read(cpu->bus, r.pc, PPU_ACCESS);
                 uint8_t num_bytes = main_instructions[opcode].num_bytes;
                 if (opcode != 0xCB) {
-                    fprintf(ptr, "Next instruction: %02X ", mem_read(cpu->memory, r.pc, PPU_ACCESS));
+                    fprintf(ptr, "Next instruction: %02X ", mem_read(cpu->bus, r.pc, PPU_ACCESS));
                     for (int i = 1; i < num_bytes; ++i)
-                        fprintf(ptr, "%02X", mem_read(cpu->memory, r.pc + i, PPU_ACCESS));
+                        fprintf(ptr, "%02X", mem_read(cpu->bus, r.pc + i, PPU_ACCESS));
                 }
                 else {
                     fprintf(ptr, "Next instruction: CB-%02X ", opcode);
                     for (int i = 1; i < num_bytes; ++i)
-                        fprintf(ptr, "%02X", mem_read(cpu->memory, r.pc + i, PPU_ACCESS));
+                        fprintf(ptr, "%02X", mem_read(cpu->bus, r.pc + i, PPU_ACCESS));
                 }
 
                 fprintf(ptr, "\n");
-            }
-
-            if (0) {
-                fprintf(ptr, "Remaining DMA Cycles: %d\n\n", mem->state.remaining_dma_cycles);
             }
         }
     }
 
     //If a battery is present, save external RAM
-    if (mem->mbc_chip->has_battery && mem->exram_x != NULL) {
+    if (bus->memory->mbc_chip->has_battery && bus->memory->exram_x != NULL) {
         //TODO: Placeholder name
         FILE* save = fopen("a.sav", "wb");
 
-        fwrite((void*)mem->exram_x, 1, mem->mbc_chip->num_exram_banks * 0x2000, save);
+        fwrite((void*)bus->memory->exram_x, 1, bus->memory->mbc_chip->num_exram_banks * 0x2000, save);
 
         fclose(save);
     }
@@ -97,9 +91,9 @@ int fe_de_ex(EmulatorSystem* system) {
     return 0;
 }
 
-void handle_interrupt(EmulatorSystem* system) {
+void check_interrupt(EmulatorSystem* system) {
     //If there are interrupts pending...
-    if (anyInterruptPending(system->cpu->memory)) {
+    if (anyInterruptPending(system->cpu->bus->memory)) {
         clearFlag(system->cpu, IS_HALTED); //Unhalt CPU if halted
 
         //If IME is enabled, service the interrupts...
@@ -115,9 +109,9 @@ void handle_interrupt(EmulatorSystem* system) {
 //Fetches instruction and handles HALT bug
 uint8_t fetch_instruction_opcode(EmulatorSystem* system) {
     CPU* cpu = system->cpu;
-    Memory* mem = system->memory;
+    MemoryBus* bus = system->bus;
 
-    uint8_t opcode = mem_read(mem, cpu->registers.pc++, CPU_ACCESS);
+    uint8_t opcode = mem_read(bus, cpu->registers.pc++, CPU_ACCESS);
 
     //HALT bug will cause the PC to not increment for 1 instruction, but it will still continue execution.
     if (flagIsSet(cpu, HALT_BUG)) {
@@ -137,7 +131,7 @@ Instruction* decode_instruction(EmulatorSystem* system, uint8_t opcode) {
     }
     else {
         //Otherwise, get the CB instruction
-        opcode = mem_read(system->memory, system->cpu->registers.pc++, CPU_ACCESS);
+        opcode = mem_read(system->bus, system->cpu->registers.pc++, CPU_ACCESS);
         instr = &cb_instructions[opcode];
     }
 
