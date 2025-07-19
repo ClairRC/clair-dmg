@@ -15,14 +15,15 @@ typedef struct {
 	SDL_Texture* texture;
 	int width;
 	int height;
+	uint64_t time_counter;
 } SDL_Display_Data;
 
 //SDL Audio Data
 typedef struct {
 	//Audio
-	SDL_AudioStream* stream;
-	SDL_AudioSpec spec;
 	SDL_AudioDeviceID dev;
+	int16_t* buffer;
+	uint16_t buffer_index;
 } SDL_Audio_Data;
 
 //SDL Input data
@@ -43,6 +44,7 @@ typedef struct {
 SDL_Data* sdl_init(int screen_width, int screen_height);
 void sdl_destroy(SDL_Data* data);
 void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer);
+void play_audio_buffer(SDL_Audio_Data* data);
 uint8_t poll_events(SDL_Input_Data* input);
 
 #endif 

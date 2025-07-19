@@ -8,9 +8,9 @@ GlobalSystemState* system_state_init() {
 	GlobalPPUState* ppu_state = (GlobalPPUState*)malloc(sizeof(GlobalPPUState));
 	GlobalDMAState* dma_state = (GlobalDMAState*)malloc(sizeof(GlobalDMAState));
 	GlobalTimerState* timer_state = (GlobalTimerState*)malloc(sizeof(GlobalTimerState));
-	//TODO: APU
+	GlobalAPUState* apu_state = (GlobalAPUState*)calloc(1, sizeof(GlobalAPUState));
 
-	if (system_state == NULL || ppu_state == NULL || dma_state == NULL || timer_state == NULL) {
+	if (system_state == NULL || ppu_state == NULL || dma_state == NULL || timer_state == NULL || apu_state == NULL) {
 		printError("Error initializing system state");
 		system_state_destroy(system_state);
 		return NULL;
@@ -30,6 +30,7 @@ GlobalSystemState* system_state_init() {
 	system_state->dma_state = dma_state;
 	system_state->ppu_state = ppu_state;
 	system_state->timer_state = timer_state;
+	system_state->apu_state = apu_state;
 
 	system_state->running = 1;
 
@@ -43,6 +44,7 @@ void system_state_destroy(GlobalSystemState* state) {
 	if (state->ppu_state != NULL) { free(state->ppu_state); }
 	if (state->dma_state != NULL) { free(state->dma_state); }
 	if (state->timer_state != NULL) { free(state->timer_state); }
+	if (state->apu_state != NULL) { free(state->apu_state); }
 
 	free(state);
 }

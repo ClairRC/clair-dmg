@@ -28,11 +28,11 @@ EmulatorSystem* system_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file
     system->cpu = cpu_init(system->bus);
     system->ppu = ppu_init(system->bus, system->system_state->ppu_state, sdl_data->display_data);
     system->sys_clock = master_clock_init(system->system_state->timer_state);
-    APU* apu = NULL; //FIX!!!
+    system->apu = apu_init(system->bus, system->system_state->apu_state, sdl_data->audio_data);
 
     //If required systems are NULL, destroy system and return NULL
     if (system->memory == NULL || system->system_state == NULL || system->bus == NULL ||
-        system->cpu == NULL || system->ppu == NULL || system->sys_clock == NULL /*|| system->apu == NULL */ ) {
+        system->cpu == NULL || system->ppu == NULL || system->sys_clock == NULL || system->apu == NULL) {
         system_destroy(system);
         return NULL;
     }
@@ -64,11 +64,11 @@ void tick_hardware(EmulatorSystem* system, uint16_t ticks) {
         update_timing_registers(system->sys_clock, system->memory); //Update timer registers
         update_dma_transfer(system); //Handle DMA transfer if active
         update_ppu(system->ppu);
-
-        //TODO: Resvole APU Stuff
-        /*update_apu_state(system->sys_clock, system->apu);
-        update_apu(system->apu, system->sys_clock->elapsed_time);
-        */
+        update_apu(system->apu, system->sys_clock->global_state->elapsed_time);
+        
+        //Every 95 t-cycles, fill audio buffer. This is approximately 44.1kHz
+        if (system->system_state->timer_state->elapsed_time % 95 == 0)
+            fill_buffer(system->apu);
 
         //If frame just ends, poll SDL to update input and check if the emulator is closed
         if (system->system_state->ppu_state->frame_time == 0) {

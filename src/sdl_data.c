@@ -7,23 +7,43 @@
 
 //Setup SDL Window
 SDL_Data* sdl_init(int screen_width, int screen_height) {
-	//Create SDL stuff
-	SDL_Data* data = (SDL_Data*)malloc(sizeof(SDL_Data));
+    //Create SDL stuff
+    SDL_Data* data = (SDL_Data*)malloc(sizeof(SDL_Data));
 
-	SDL_Display_Data* display_data = (SDL_Display_Data*)malloc(sizeof(SDL_Display_Data));
+    SDL_Display_Data* display_data = (SDL_Display_Data*)malloc(sizeof(SDL_Display_Data));
     SDL_Input_Data* input_data = (SDL_Input_Data*)calloc(1, sizeof(SDL_Input_Data)); //Input data struct
+    SDL_Audio_Data* audio_data = (SDL_Audio_Data*)malloc(sizeof(SDL_Audio_Data));
 
-	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-		printError("Failed to initialize SDL Video");
+    //Video
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        printError("Failed to initialize SDL Video");
         sdl_destroy(data);
-		return NULL;
-	}
+        return NULL;
+    }
 
-	SDL_Window* window = SDL_CreateWindow("Testieee :3", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width * SCALE, screen_height * SCALE, SDL_WINDOW_SHOWN);
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
+    SDL_Window* window = SDL_CreateWindow("Testieee :3", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width * SCALE, screen_height * SCALE, SDL_WINDOW_SHOWN);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
 
-	if (data == NULL || display_data == NULL || input_data == NULL || !window || !renderer || !texture) {
+    //Audio
+    if (SDL_Init(SDL_INIT_AUDIO) != 0) {
+        printError("Failed to initialize SDL Audio");
+        sdl_destroy(data);
+        return NULL;
+    }
+
+    SDL_AudioSpec want = (SDL_AudioSpec){
+        .freq = 44100,
+        .format = AUDIO_S16SYS,
+        .channels = 1,
+        .samples = 1024,
+        .callback = NULL
+    };
+
+    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &want, NULL, 0);
+    SDL_ClearQueuedAudio(dev);
+
+	if (data == NULL || display_data == NULL || input_data == NULL || audio_data == NULL || !window || !renderer || !texture) {
 		printError("Error creating window");
 		sdl_destroy(data);
 		return NULL;
@@ -31,16 +51,24 @@ SDL_Data* sdl_init(int screen_width, int screen_height) {
 
     data->display_data = display_data;
     data->input_data = input_data;
+    data->audio_data = audio_data;
 
 	data->display_data->window = window;
 	data->display_data->renderer = renderer;
 	data->display_data->texture = texture;
 	data->display_data->height = screen_height;
 	data->display_data->width = screen_width;
+    data->display_data->time_counter = 0;
 
     //Default button values for unpressed
     data->input_data->button_state = 0x0F;
     data->input_data->dpad_state = 0x0F;
+
+    data->audio_data->buffer = (int16_t*)calloc(1024, sizeof(int16_t));
+    data->audio_data->buffer_index = 0;
+    data->audio_data->dev = dev;
+
+    SDL_PauseAudioDevice(data->audio_data->dev, 0);
 
 	return data;
 }
@@ -60,6 +88,11 @@ void sdl_destroy(SDL_Data* data) {
     if (data->input_data != NULL)
         free(data->input_data);
 
+    if (data->audio_data != NULL) {
+        free(data->audio_data->buffer);
+        free(data->audio_data);
+    }
+
 	SDL_Quit();
 
 	free(data);
@@ -71,26 +104,22 @@ void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer) {
 	SDL_RenderCopy(data->renderer, data->texture, NULL, NULL);
 	SDL_RenderPresent(data->renderer);
 	
-	//TODO: Fix
-	/*
-	uint64_t start = display->time_counter; 
-	uint64_t end = SDL_GetPerformanceCounter();
+    uint64_t start = data->time_counter;
+    uint64_t end = SDL_GetPerformanceCounter();
 
-	//If framerate is -1, that means unlimited fps
-	//Otherwise, delay till the end of the frame in terms of real time
-	if (display->frame_rate != -1) {
-		double elapsed_ms = (end - start) * 1000.0 * (1.0 / SDL_GetPerformanceFrequency());
-		double target_frame_time = (1000.0 / display->frame_rate);
+    //If framerate is -1, that means unlimited fps
+    //Otherwise, delay till the end of the frame in terms of real time
 
-		//printf("frame time: %.2f\n", elapsed_ms);
+    double elapsed_ms = (end - start) * 1000.0 * (1.0 / SDL_GetPerformanceFrequency());
+    double target_frame_time = (1000.0 / 59.97);
 
-		if (elapsed_ms < target_frame_time) {
-			SDL_Delay((Uint32)(target_frame_time - elapsed_ms));
-		}
-	}
 
-	display->time_counter = SDL_GetPerformanceCounter();
-	*/
+    if (elapsed_ms < target_frame_time) {
+        SDL_Delay((Uint32)(target_frame_time - elapsed_ms));
+    }
+
+    data->time_counter = SDL_GetPerformanceCounter();
+	
 }
 
 //Polls SDL events and updates input data
@@ -177,4 +206,10 @@ uint8_t poll_events(SDL_Input_Data* input) {
     input->dpad_state = dpad_state & 0x0F;
 
     return 0;
+}
+
+//Plays values in audio buffer
+void play_audio_buffer(SDL_Audio_Data* data) {
+    //Queue audio samples
+    SDL_QueueAudio(data->dev, data->buffer, 1024 * sizeof(int16_t));
 }

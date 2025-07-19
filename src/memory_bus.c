@@ -78,6 +78,10 @@ uint8_t mem_write(MemoryBus* bus, uint16_t address, uint8_t new_val, Accessor ac
 		if (mem_value.range == RANGE_IO) {
 			new_val = mask_hw_reg_write(new_val, *mem_ptr, address);
 			update_global_state(bus, address, new_val); //Updates various hardware register related states
+			
+			//If APU is disabled, then APU hardware registers become read only
+			if (address >= 0xFF10 && address <= 0xFF25 && bus->system_state->apu_state->apu_enable == 0)
+				new_val = *mem_ptr; //Set new val to old val, so no writes are done
 		}
 
 		//Update memory address with new value
@@ -121,6 +125,56 @@ void update_global_state(MemoryBus* bus, uint16_t address, uint8_t new_val) {
 		}
 		else
 			bus->system_state->ppu_state->lcd_on = 0;
+	}
+
+	//Bit 7 of NR52 turns on/off APU
+	else if (address == 0xFF26) {
+		if (((new_val >> 7) & 0x1) == 1)
+			bus->system_state->apu_state->apu_enable = 1; //Turn APU on
+		else {
+			//If APU is already off, do nothing. If its on, set the flag for APU to clear registers
+			if (bus->system_state->apu_state->apu_enable)
+				bus->system_state->apu_state->turn_off_apu = 1;
+
+			bus->system_state->apu_state->apu_enable = 0;
+		}
+	}
+
+	//Bit 7 of NRx4 triggers channel x
+	//Bit 6 for channels 1-3 determine if the note has length timer
+	else if (address == 0xFF14) {
+		if (new_val & 0x80)
+			bus->system_state->apu_state->trigger_ch1 = 1;
+
+		if (new_val & 0x40)
+			bus->system_state->apu_state->ch1_length_enable = 1;
+		else
+			bus->system_state->apu_state->ch1_length_enable = 0;
+	}
+
+	else if (address == 0xFF19) {
+		if (new_val & 0x80)
+			bus->system_state->apu_state->trigger_ch2 = 1;
+
+		if (new_val & 0x40)
+			bus->system_state->apu_state->ch2_length_enable = 1;
+		else
+			bus->system_state->apu_state->ch2_length_enable = 0;
+	}
+
+	else if (address == 0xFF1E) {
+		if (new_val & 0x80)
+			bus->system_state->apu_state->trigger_ch3 = 1;
+
+		if (new_val & 0x40)
+			bus->system_state->apu_state->ch3_length_enable = 1;
+		else
+			bus->system_state->apu_state->ch3_length_enable = 0;
+	}
+
+	else if (address == 0xFF23) {
+		if (new_val & 0x80)
+			bus->system_state->apu_state->trigger_ch4 = 1;
 	}
 }
 

@@ -8,7 +8,7 @@
 
 typedef struct {
 	GlobalPPUState* ppu_state;
-	//GlobalAPUState* apu_state;
+	GlobalAPUState* apu_state;
 	GlobalDMAState* dma_state;
 	GlobalTimerState* timer_state;
 

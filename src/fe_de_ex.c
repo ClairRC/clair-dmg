@@ -41,8 +41,8 @@ int fe_de_ex(EmulatorSystem* system) {
 
         RegisterFile r = cpu->registers;
         
-        uint16_t target_pc_start = 0x100;
-        uint16_t target_pc_end = 0xFFFF;
+       uint16_t target_pc_start = 0x150;
+       uint16_t target_pc_end = 0xFFFF;
 
         if (r.pc == target_pc_start)
             log = 1;
