@@ -6,6 +6,12 @@
 #include "sdl_data.h"
 #include "apu_state.h"
 
+//Struct for getting audio samples. Contains left and right output
+typedef struct {
+	int16_t left;
+	int16_t right;
+}APUSample;
+
 //Channel state structs
 typedef struct {
 	//Channel 1 specific values
@@ -86,6 +92,10 @@ typedef struct {
 	//Wave RAM index
 	uint8_t sample_num; //Which out of 32 samples are being read from custom waveform in wave RAM
 
+	//Channel 3 doesn't read directly from ram, but from an internal buffer that stores the last read sample
+	//The effect of this is that upon retriggering this channel, the first sample read is the same as the last sample read
+	uint8_t last_sample;
+
 	//Ch3 output
 	uint8_t out;
 }Ch3State;
@@ -136,7 +146,7 @@ APU* apu_init(MemoryBus* bus, GlobalAPUState* global_state, SDL_Audio_Data* sdl_
 void apu_destroy(APU* apu);
 
 void fill_buffer(APU* apu);
-int16_t mix_dac_values(APU* apu); //Gets the mixed DAC value to add to audio buffer
+APUSample mix_dac_values(APU* apu); //Gets the mixed DAC value to add to audio buffer
 
 void update_apu(APU* apu, uint64_t emulator_time);
 void update_dacs(APU* apu);

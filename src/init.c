@@ -7,7 +7,7 @@
 #include "hardware_registers.h"
 #include "sdl_data.h"
 
-#define GAME_NAME "C:/Users/Claire/Desktop/yello.gb"
+#define GAME_NAME "C:/Users/Claire/Desktop/a.gb"
 #define BOOTROM_DIR "C:/Users/Claire/Desktop/boot.bi"
 
 int emulator_init() {

@@ -19,6 +19,7 @@ GlobalSystemState* system_state_init() {
 	ppu_state->current_mode = PPU_MODE_2;
 	ppu_state->frame_time = 0;
 	ppu_state->lcd_on = 1;
+	ppu_state->frame_rate = 59.73; //Default framerate of the gameboy
 
 	dma_state->active = 0;
 	dma_state->remaining_cycles = 640;

@@ -35,8 +35,8 @@ SDL_Data* sdl_init(int screen_width, int screen_height) {
     SDL_AudioSpec want = (SDL_AudioSpec){
         .freq = 44100,
         .format = AUDIO_S16SYS,
-        .channels = 1,
-        .samples = 1024,
+        .channels = 2,
+        .samples = 2048,
         .callback = NULL
     };
 
@@ -64,7 +64,7 @@ SDL_Data* sdl_init(int screen_width, int screen_height) {
     data->input_data->button_state = 0x0F;
     data->input_data->dpad_state = 0x0F;
 
-    data->audio_data->buffer = (int16_t*)calloc(1024, sizeof(int16_t));
+    data->audio_data->buffer = (int16_t*)calloc(4096, sizeof(int16_t));
     data->audio_data->buffer_index = 0;
     data->audio_data->dev = dev;
 
@@ -98,20 +98,18 @@ void sdl_destroy(SDL_Data* data) {
 	free(data);
 }
 
-void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer) {
+void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer, uint16_t framerate) {
 	SDL_UpdateTexture(data->texture, NULL, framebuffer, data->width * sizeof(uint32_t));
 	SDL_RenderClear(data->renderer);
 	SDL_RenderCopy(data->renderer, data->texture, NULL, NULL);
 	SDL_RenderPresent(data->renderer);
 	
+    //Waits for framerate to catch up
     uint64_t start = data->time_counter;
     uint64_t end = SDL_GetPerformanceCounter();
 
-    //If framerate is -1, that means unlimited fps
-    //Otherwise, delay till the end of the frame in terms of real time
-
     double elapsed_ms = (end - start) * 1000.0 * (1.0 / SDL_GetPerformanceFrequency());
-    double target_frame_time = (1000.0 / 59.97);
+    double target_frame_time = (1000.0 / framerate); //59.73fps is gameboy framerate
 
 
     if (elapsed_ms < target_frame_time) {
@@ -119,7 +117,6 @@ void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer) {
     }
 
     data->time_counter = SDL_GetPerformanceCounter();
-	
 }
 
 //Polls SDL events and updates input data
@@ -140,36 +137,33 @@ uint8_t poll_events(SDL_Input_Data* input) {
             if (e.key.keysym.sym == SDLK_z)
                 button_state &= ~(1 << 0);
             //B button
-            if (e.key.keysym.sym == SDLK_x)
+            else if (e.key.keysym.sym == SDLK_x)
                 button_state &= ~(1 << 1);
             //Select
-            if (e.key.keysym.sym == SDLK_RSHIFT)
+            else if (e.key.keysym.sym == SDLK_RSHIFT)
                 button_state &= ~(1 << 2);
             //Start
-            if (e.key.keysym.sym == SDLK_RETURN)
+            else if (e.key.keysym.sym == SDLK_RETURN)
                 button_state &= ~(1 << 3);
 
 
             //Right
-            if (e.key.keysym.sym == SDLK_RIGHT)
+            else if (e.key.keysym.sym == SDLK_RIGHT)
                 dpad_state &= ~(1 << 0);
             //Left
-            if (e.key.keysym.sym == SDLK_LEFT)
+            else if (e.key.keysym.sym == SDLK_LEFT)
                 dpad_state &= ~(1 << 1);
             //Up
-            if (e.key.keysym.sym == SDLK_UP)
+            else if (e.key.keysym.sym == SDLK_UP)
                 dpad_state &= ~(1 << 2);
             //Down
-            if (e.key.keysym.sym == SDLK_DOWN)
+            else if (e.key.keysym.sym == SDLK_DOWN)
                 dpad_state &= ~(1 << 3);
 
-            //Toggle unlimited FPS with space bar
-            if (e.key.keysym.sym == SDLK_SPACE) {
-                if (input->fast_foward == 0)
-                    input->fast_foward = 1;
-                else if (input->fast_foward == 1)
-                    input->fast_foward = 0;
-            }
+
+            //Fast forward hotkey
+            else if (e.key.keysym.sym == SDLK_SPACE)
+                input->fast_foward = 1;
         }
 
         if (e.type == SDL_KEYUP) {
@@ -177,28 +171,33 @@ uint8_t poll_events(SDL_Input_Data* input) {
             if (e.key.keysym.sym == SDLK_z)
                 button_state |= (1 << 0);
             //B button
-            if (e.key.keysym.sym == SDLK_x)
+            else if (e.key.keysym.sym == SDLK_x)
                 button_state |= (1 << 1);
             //Select
-            if (e.key.keysym.sym == SDLK_RSHIFT)
+            else if (e.key.keysym.sym == SDLK_RSHIFT)
                 button_state |= (1 << 2);
             //Start
-            if (e.key.keysym.sym == SDLK_RETURN)
+            else if (e.key.keysym.sym == SDLK_RETURN)
                 button_state |= (1 << 3);
 
 
             //Right
-            if (e.key.keysym.sym == SDLK_RIGHT)
+            else if (e.key.keysym.sym == SDLK_RIGHT)
                 dpad_state |= (1 << 0);
             //Left
-            if (e.key.keysym.sym == SDLK_LEFT)
+            else if (e.key.keysym.sym == SDLK_LEFT)
                 dpad_state |= (1 << 1);
             //Up
-            if (e.key.keysym.sym == SDLK_UP)
+            else if (e.key.keysym.sym == SDLK_UP)
                 dpad_state |= (1 << 2);
             //Down
-            if (e.key.keysym.sym == SDLK_DOWN)
+            else if (e.key.keysym.sym == SDLK_DOWN)
                 dpad_state |= (1 << 3);
+
+
+            //Fast forward hotkey
+            else if (e.key.keysym.sym == SDLK_SPACE)
+                input->fast_foward = 0;
         }
     }
 
@@ -211,5 +210,5 @@ uint8_t poll_events(SDL_Input_Data* input) {
 //Plays values in audio buffer
 void play_audio_buffer(SDL_Audio_Data* data) {
     //Queue audio samples
-    SDL_QueueAudio(data->dev, data->buffer, 1024 * sizeof(int16_t));
+    SDL_QueueAudio(data->dev, data->buffer, 4096 * sizeof(int16_t));
 }

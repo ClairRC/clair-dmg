@@ -47,6 +47,8 @@
 #define NR42_LOCATION io[0x21]
 #define NR43_LOCATION io[0x22]
 #define NR44_LOCATION io[0x23]
+#define NR50_LOCATION io[0x24]
+#define NR51_LOCATION io[0x25]
 #define NR52_LOCATION io[0x26]
 
 /*

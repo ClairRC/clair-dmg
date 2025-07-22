@@ -131,13 +131,9 @@ void update_global_state(MemoryBus* bus, uint16_t address, uint8_t new_val) {
 	else if (address == 0xFF26) {
 		if (((new_val >> 7) & 0x1) == 1)
 			bus->system_state->apu_state->apu_enable = 1; //Turn APU on
-		else {
-			//If APU is already off, do nothing. If its on, set the flag for APU to clear registers
-			if (bus->system_state->apu_state->apu_enable)
-				bus->system_state->apu_state->turn_off_apu = 1;
-
-			bus->system_state->apu_state->apu_enable = 0;
-		}
+		else
+			//Set the flag for APU to clear registers
+			bus->system_state->apu_state->turn_off_apu = 1;
 	}
 
 	//Bit 7 of NRx4 triggers channel x
@@ -184,21 +180,14 @@ uint8_t get_input_byte(Memory* mem, uint8_t val) {
 	uint8_t read_dpad = !(mem->io[0x0] & 1 << 4);
 	uint8_t read_buttons = !(mem->io[0x0] & 1 << 5);
 
-	uint8_t joypad_state = 0x0; //Default joypad state
-
-	//If neither buttons nor dpad are selected, reads return 0xF for lower nibble
-	//This has someting to do with SGB compatibility, but I am not implementing that so I'm unsure
-	//This also fixed seemingly SUPER random things like very select screens showing
-	//an inverted color palette. I mean if it works it works.
-	if (!read_dpad && !read_buttons)
-		joypad_state = 0xF;
+	uint8_t joypad_state = 0xF; //Default joypad state
 
 	//Read buttons
 	if (read_dpad)
-		joypad_state |= mem->local_state.dpad_state;
+		joypad_state &= mem->local_state.dpad_state;
 
 	if (read_buttons)
-		joypad_state |= mem->local_state.button_state;
+		joypad_state &= mem->local_state.button_state;
 
 	//Keep top nibble, replace bottom nibble with button inputs
 	val = (val & 0xF0) | (joypad_state & 0x0F);

@@ -65,12 +65,8 @@ void tick_hardware(EmulatorSystem* system, uint16_t ticks) {
         update_dma_transfer(system); //Handle DMA transfer if active
         update_ppu(system->ppu);
         update_apu(system->apu, system->sys_clock->global_state->elapsed_time);
-        
-        //Every 95 t-cycles, fill audio buffer. This is approximately 44.1kHz
-        if (system->system_state->timer_state->elapsed_time % 95 == 0)
-            fill_buffer(system->apu);
 
-        //If frame just ends, poll SDL to update input and check if the emulator is closed
+        //If frame just ends, poll SDL to update input/fast forward toggle and check if the emulator is closed
         if (system->system_state->ppu_state->frame_time == 0) {
             if (poll_events(system->sdl_data->input_data)) {
                 system->system_state->running = 0; //If SDL is quit, stop running emulator
@@ -79,6 +75,12 @@ void tick_hardware(EmulatorSystem* system, uint16_t ticks) {
             //Update memory state to reflect current button state
             system->memory->local_state.button_state = system->sdl_data->input_data->button_state;
             system->memory->local_state.dpad_state = system->sdl_data->input_data->dpad_state;
+
+            //If fast foward is on, quaduple framerate
+           if (system->sdl_data->input_data->fast_foward)
+                system->system_state->ppu_state->frame_rate = 59.73 * 4;
+            else
+                system->system_state->ppu_state->frame_rate = 59.73;
         }
 
         //Add to system time and frame time and update elapsed_ticks

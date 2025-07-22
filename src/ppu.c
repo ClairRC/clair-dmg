@@ -173,8 +173,8 @@ void switch_mode_1_2(PPU* ppu) {
     ppu->global_state->current_mode = PPU_MODE_2; //Update current PPU mode
     ppu->global_state->frame_time = 0; //Reset frame time back to 0
 
-    //Draws buffer through SDL
-    draw_buffer(ppu->sdl_data, ppu->framebuffer);
+    //Draws buffer through SDL and waits to maintain framerate
+    draw_buffer(ppu->sdl_data, ppu->framebuffer, ppu->global_state->frame_rate);
 }
 
 //Switch from mode 2 to mode 3 (oam scan to draw scanline)
