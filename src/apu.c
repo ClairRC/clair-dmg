@@ -33,6 +33,8 @@ APU* apu_init(MemoryBus* bus, GlobalAPUState* global_state, SDL_Audio_Data* sdl_
 	apu->local_state.ch3.length_timer_end = 256;
 	apu->local_state.div_bit = 4; //Is 5 in double speed mode
 	apu->local_state.prev_div_state = 0;
+	apu->local_state.target_interval = 4194304.0 / 44100.0; //GB clock speed divided by sample rate gives number of cycles between samples
+	apu->local_state.error_accumulator = 0.0;
 
 	//Duty cycles
 	uint8_t duty_cycles[32] = {
@@ -68,15 +70,16 @@ void fill_buffer(APU* apu) {
 	apu->sdl_data->buffer[apu->sdl_data->buffer_index++] = sample.left; //Add sample to buffer
 	apu->sdl_data->buffer[apu->sdl_data->buffer_index++] = sample.right;
 
-	
 	//If buffer is full, give it to SDL and reset the index
 	if (apu->sdl_data->buffer_index >= 4096) {
 		apu->sdl_data->buffer_index = 0;
 
 		//Only queue audio if queue is running low-ish. This prevents sound being processed quicker than SDL can play it
 		//This will reduce delay, but introduce some occasional popping
-		if (SDL_GetQueuedAudioSize(apu->sdl_data->dev) <= 24000)
+		//I chose an arbitrary number that seemed to be a good compromise between the two
+		if (SDL_GetQueuedAudioSize(apu->sdl_data->dev) <= 26000) {
 			play_audio_buffer(apu->sdl_data);
+		}
 	}
 }
 
@@ -150,9 +153,14 @@ APUSample mix_dac_values(APU* apu) {
 
 //Checks whether channels should be activated and updates DIV APU
 void update_apu(APU* apu, uint64_t emulator_time) {
-	//Every 95.2 t-cycles, fill audio buffer. This is approximately 44.1kHz
-	if (emulator_time % 94 == 0)
+	//Every 95.2 t-cycles on average, fill audio buffer. This is approximately 44.1kHz
+	//Accumulating error for each t-cycle will allow any extra cycles to be accounted for, so this should
+	//average approximately 95.2 t-cycles per sample, which is approximately 44.1kHz with GB's clock speed
+	apu->local_state.error_accumulator += 1.0; //Increment error accumulator
+	if (apu->local_state.error_accumulator >= apu->local_state.target_interval) {
+		apu->local_state.error_accumulator -= apu->local_state.target_interval;
 		fill_buffer(apu);
+	}
 
 	//Update DIV APU for channel updates
 	//This happens even when APU is off, as it is tied to DIV

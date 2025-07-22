@@ -122,6 +122,10 @@ typedef struct {
 	Ch2State ch2;
 	Ch3State ch3;
 	Ch4State ch4;
+
+	//Error accumulation to get better sample timing
+	double target_interval; //44.1kHz is about 95.2 t-cycles
+	double error_accumulator; //This will accumulate error from the sample timing
 } LocalAPUState;
 
 typedef struct {
