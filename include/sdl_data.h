@@ -48,5 +48,6 @@ void sdl_destroy(SDL_Data* data);
 void draw_buffer(SDL_Display_Data* data, uint32_t* framebuffer, uint16_t framerate);
 void play_audio_buffer(SDL_Audio_Data* data);
 uint8_t poll_events(SDL_Input_Data* input);
+void change_window_name(SDL_Data* data, char* new_name);
 
 #endif 

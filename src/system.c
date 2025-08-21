@@ -3,7 +3,7 @@
 #include "system_state.h"
 #include "logging.h"
 
-EmulatorSystem* system_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file, SDL_Data* sdl_data) {
+EmulatorSystem* system_init(FILE* rom_file, FILE* boot_rom_file, SDL_Data* sdl_data) {
     //ROM and SDL information required for emulator to run
     if (rom_file == NULL || sdl_data == NULL) {
         printError("Unable to open ROM");
@@ -20,7 +20,7 @@ EmulatorSystem* system_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file
     system->sdl_data = sdl_data;
 
     //Memory and System State
-    system->memory = memory_init(rom_file, save_data, NULL);
+    system->memory = memory_init(rom_file, boot_rom_file);
     system->system_state = system_state_init();
     system->bus = memory_bus_init(system->memory, system->system_state);
     

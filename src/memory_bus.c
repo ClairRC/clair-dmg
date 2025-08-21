@@ -171,6 +171,11 @@ void update_global_state(MemoryBus* bus, uint16_t address, uint8_t new_val) {
 	else if (address == 0xFF23) {
 		if (new_val & 0x80)
 			bus->system_state->apu_state->trigger_ch4 = 1;
+
+		if (new_val & 0x40)
+			bus->system_state->apu_state->ch4_length_enable = 1;
+		else
+			bus->system_state->apu_state->ch4_length_enable = 0;
 	}
 }
 
@@ -199,7 +204,7 @@ uint8_t get_input_byte(Memory* mem, uint8_t val) {
 uint8_t mask_hw_reg_read(uint8_t val, uint16_t address) {
 	HardwareRegister hw_reg = hw_registers[(uint8_t)address]; //Gets hardware register from LSB
 
-	//Return default value if register is CGB only
+	//Return default value if register is CGB only and current mode is DMG
 	if (hw_reg.cgb_only)
 		return 0xFF;
 

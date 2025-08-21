@@ -5,8 +5,10 @@
 int main() {
     int success = emulator_init();
 
-    if (success == 1)
+    if (success == 1) {
         printError("Initialization failed");
+        getchar();
+    }
 
     return success;
 }

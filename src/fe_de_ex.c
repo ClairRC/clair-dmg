@@ -7,10 +7,6 @@ int fe_de_ex(EmulatorSystem* system) {
     CPU* cpu = system->cpu;
     MemoryBus* bus = system->bus;
 
-    FILE* ptr = fopen("C:/Users/Claire/Desktop/logfile.txt", "w");
-
-    uint8_t log = 0;
-
     while (system->system_state->running) {
         check_interrupt(system); //Handles interrupts if there are any
 
@@ -36,58 +32,11 @@ int fe_de_ex(EmulatorSystem* system) {
         else {
             tick_hardware(system, 4);
         }
-
-        //Everything below this is just for debugging
-
-        RegisterFile r = cpu->registers;
-        
-       uint16_t target_pc_start = 0x150;
-       uint16_t target_pc_end = 0xFFFF;
-
-        if (r.pc == target_pc_start)
-            log = 1;
-
-        if (r.pc == target_pc_end && log)
-            fclose(ptr);
-
-        uint8_t yes = 0;
-        if (!cpu->state.isHalted && yes) {
-            if (log) {
-               fprintf(ptr, "A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
-                    r.A, r.F, r.B, r.C, r.D, r.E, r.H, r.L, r.sp, r.pc, mem_read(cpu->bus, r.pc, PPU_ACCESS), mem_read(cpu->bus, r.pc + 1, PPU_ACCESS), mem_read(cpu->bus, r.pc + 2, PPU_ACCESS), mem_read(cpu->bus, r.pc + 3, PPU_ACCESS)
-                );
-            }
-
-            if (0) {
-                uint8_t opcode = mem_read(cpu->bus, r.pc, PPU_ACCESS);
-                uint8_t num_bytes = main_instructions[opcode].num_bytes;
-                if (opcode != 0xCB) {
-                    fprintf(ptr, "Next instruction: %02X ", mem_read(cpu->bus, r.pc, PPU_ACCESS));
-                    for (int i = 1; i < num_bytes; ++i)
-                        fprintf(ptr, "%02X", mem_read(cpu->bus, r.pc + i, PPU_ACCESS));
-                }
-                else {
-                    fprintf(ptr, "Next instruction: CB-%02X ", opcode);
-                    for (int i = 1; i < num_bytes; ++i)
-                        fprintf(ptr, "%02X", mem_read(cpu->bus, r.pc + i, PPU_ACCESS));
-                }
-
-                fprintf(ptr, "\n");
-            }
-        }
     }
 
-    //If a battery is present, save external RAM
-    if (bus->memory->mbc_chip->has_battery && bus->memory->exram_x != NULL) {
-        //TODO: Placeholder name
-        FILE* save = fopen("a.sav", "wb");
+    //When emulator closes, save data
+    save_save_data(system->memory);
 
-        fwrite((void*)bus->memory->exram_x, 1, bus->memory->mbc_chip->num_exram_banks * 0x2000, save);
-
-        fclose(save);
-    }
-
-    if (ptr) { fclose(ptr); }
     return 0;
 }
 

@@ -21,7 +21,7 @@ SDL_Data* sdl_init(int screen_width, int screen_height) {
         return NULL;
     }
 
-    SDL_Window* window = SDL_CreateWindow("Testieee :3", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width * SCALE, screen_height * SCALE, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow("ClairDMG", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width * SCALE, screen_height * SCALE, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
 
@@ -35,6 +35,7 @@ SDL_Data* sdl_init(int screen_width, int screen_height) {
     SDL_AudioSpec want = (SDL_AudioSpec){
         .freq = 44100,
         .format = AUDIO_S16SYS,
+        .silence = 0,
         .channels = 2,
         .samples = 2048,
         .callback = NULL
@@ -211,4 +212,9 @@ uint8_t poll_events(SDL_Input_Data* input) {
 void play_audio_buffer(SDL_Audio_Data* data) {
     //Queue audio samples
     SDL_QueueAudio(data->dev, data->buffer, 4096 * sizeof(int16_t));
+}
+
+//Changes name of window
+void change_window_name(SDL_Data* data, char* new_name) {
+    SDL_SetWindowTitle(data->display_data->window, new_name);
 }

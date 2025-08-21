@@ -5,6 +5,6 @@
 
 //Sets up initial emulator conditions
 int emulator_init();
-int init_cpu_vals(EmulatorSystem*);
+int init_cpu_vals(EmulatorSystem* system);
 
 #endif

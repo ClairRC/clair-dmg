@@ -39,7 +39,7 @@ typedef struct {
 //Initializes system.
 //Only takes memory pointer since memory is the "indepenent" piece of the system 
 //that everything else uses
-EmulatorSystem* system_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file, SDL_Data* sdl_data);
+EmulatorSystem* system_init(FILE* rom_file, FILE* boot_rom_file, SDL_Data* sdl_data);
 void system_destroy(EmulatorSystem* system);
 void tick_hardware(EmulatorSystem* system, uint16_t ticks); //Updates hardware timing
 void update_dma_transfer(EmulatorSystem* system);

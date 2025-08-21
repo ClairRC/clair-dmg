@@ -29,11 +29,11 @@
 #define WX_LOCATION io[0x4B] //Window X register
 
 //APU Locations
-#define NR10_LOCATION io[0x10]
-#define NR11_LOCATION io[0x11]
-#define NR12_LOCATION io[0x12]
-#define NR13_LOCATION io[0x13]
-#define NR14_LOCATION io[0x14]
+#define NR10_LOCATION io[0x10] //Sound channel 1 register 0
+#define NR11_LOCATION io[0x11] //Sound channel 1 register 1
+#define NR12_LOCATION io[0x12] //Sound channel 1 register 2
+#define NR13_LOCATION io[0x13] //Sound channel 1 register 3
+#define NR14_LOCATION io[0x14] //... you get the gist
 #define NR21_LOCATION io[0x16]
 #define NR22_LOCATION io[0x17]
 #define NR23_LOCATION io[0x18]
@@ -47,15 +47,9 @@
 #define NR42_LOCATION io[0x21]
 #define NR43_LOCATION io[0x22]
 #define NR44_LOCATION io[0x23]
-#define NR50_LOCATION io[0x24]
-#define NR51_LOCATION io[0x25]
-#define NR52_LOCATION io[0x26]
-
-/*
-* TODO:
-* Add 2nd vram bank and wram banks 2-7 with CGB emulation
-* Emulate echo ram and unusable ram area for accuracy.
-*/
+#define NR50_LOCATION io[0x24] //Master volume and VIN panning
+#define NR51_LOCATION io[0x25] //Sound panning
+#define NR52_LOCATION io[0x26] //Audio master control
 
 //Enum for memory range. Includeing ROM, VRAM, I/O, etc
 typedef enum {
@@ -79,7 +73,6 @@ typedef struct {
 typedef struct {
     //Bootrom flag
     uint8_t boot_rom_mapped; //Bootrom flag
-    uint8_t current_wram_bank; //Current WRAM bank. Always 1 on DMG. Not related to MBC
     uint8_t button_state; //Current state of non-dpad buttons
     uint8_t dpad_state; //Current state of dpad buttons
 } LocalMemoryState;
@@ -87,12 +80,18 @@ typedef struct {
 //Memory struct to hold different memory mappings.
 //Full memory map for GB can be found here: https://gbdev.io/pandocs/Memory_Map.html
 typedef struct {
+    //Stores game name as well for creating a save.
+    //Most emulators save it as the same name as the ROM name, but because I'm short on time,
+    //my system is a tad different.
+    char* game_name;
+
     //MBC struct to store information about the Memory Bank Controller
     MBC* mbc_chip;
 
     //Fixed memory locations
     uint8_t* vram_0; //8kb vram bank. CGB has a second vram bank.
-    uint8_t* wram_x; //4kb wram bank. CGB has 8 total, DMG just has 1
+    uint8_t* vram_1;
+    uint8_t* wram_x; //4kb wram bank. CGB has 8 total, DMG just has 2
     uint8_t* oam; //Object Attribute Memory
     uint8_t* io; //IO registers
     uint8_t* hram; //hram. Final index is the interrupt enable register.
@@ -110,10 +109,13 @@ typedef struct {
 } Memory;
 
 //Initialization
-Memory* memory_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file);
+Memory* memory_init(FILE* rom_file, FILE* boot_rom_file);
 MBC_Data* get_mbc_data(FILE* rom_file);
 uint8_t load_rom_data(Memory* mem, FILE* rom_file);
-uint8_t load_save_data(Memory* mem, FILE* save_data);
+uint8_t load_save_data(Memory* mem);
+void save_save_data(Memory* mem);
+uint8_t load_boot_rom_data(Memory* mem, FILE* boot_rom_file);
+void get_game_name(Memory* mem);
 
 //Destroy memoy
 void memory_destroy(Memory* mem);
@@ -123,6 +125,7 @@ MemoryValue get_memory_value(Memory* mem, uint16_t address);
 uint8_t* get_rom_ptr(Memory* mem, uint16_t address);
 uint8_t* get_vram_ptr(Memory* mem, uint16_t address);
 uint8_t* get_exram_ptr(Memory* mem, uint16_t address);
+uint8_t* get_wram_ptr(Memory* mem, uint16_t address);
 
 //Disable bootrom
 void disable_bootrom(Memory* mem);

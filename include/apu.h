@@ -107,6 +107,20 @@ typedef struct {
 
 	uint64_t emulator_time_start;
 
+	//Length timer values
+	uint8_t length_timer;
+	uint8_t length_timer_end;
+
+	//Envelope functionality values
+	uint8_t high_vol; //Volume of "high" part of wave
+	uint8_t env_dir; //Whether volume increases or decreases
+	uint8_t env_timer; //Starts at 0. Every time this reaches env_end, it updates the "high_vol" variable. Ticks ever 64Hz
+	uint8_t env_end; //End of timer
+
+	//LFSR values
+	uint16_t lfsr;
+	uint64_t last_lfsr_clock;
+
 	uint8_t out;
 }Ch4State;
 
@@ -168,5 +182,7 @@ void update_ch1(APU* apu, uint64_t emulator_time);
 void update_ch2(APU* apu, uint64_t emulator_time);
 void update_ch3(APU* apu, uint64_t emulator_time);
 void update_ch4(APU* apu, uint64_t emulator_time);
+
+void clock_lsfr(APU* apu);
 
 #endif

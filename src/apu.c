@@ -31,6 +31,8 @@ APU* apu_init(MemoryBus* bus, GlobalAPUState* global_state, SDL_Audio_Data* sdl_
 	apu->local_state.ch1.length_timer_end = 64;
 	apu->local_state.ch2.length_timer_end = 64;
 	apu->local_state.ch3.length_timer_end = 256;
+	apu->local_state.ch4.length_timer_end = 64;
+
 	apu->local_state.div_bit = 4; //Is 5 in double speed mode
 	apu->local_state.prev_div_state = 0;
 	apu->local_state.target_interval = 4194304.0 / 44100.0; //GB clock speed divided by sample rate gives number of cycles between samples
@@ -94,17 +96,18 @@ APUSample mix_dac_values(APU* apu) {
 	float channel_1_dac = 0;
 	float channel_2_dac = 0;
 	float channel_3_dac = 0;
-	//float channel_4_dac = 0;
+	float channel_4_dac = 0;
 
-	//Max output volume is 15, so subtract 7.5 to have it centered at 0 before scaling
+	//Max output volume is 15, so subtract 7.5 and divide to scale it to a range between -1 and 1
+	//15 corresponds to -1 and 0 to positive 1, so also flip the signs
 	if (apu->local_state.ch1.dac_enable && apu->local_state.ch1.out < 16)
-		channel_1_dac = (float)apu->local_state.ch1.out - 7.5;
+		channel_1_dac = -1 * ((float)apu->local_state.ch1.out - 7.5)/7.5;
 	if (apu->local_state.ch2.dac_enable && apu->local_state.ch2.out < 16)
-		channel_2_dac = (float)apu->local_state.ch2.out - 7.5;
+		channel_2_dac = -1 * ((float)apu->local_state.ch2.out - 7.5)/7.5;
 	if (apu->local_state.ch3.dac_enable && apu->local_state.ch3.out < 16)
-		channel_3_dac = (float)apu->local_state.ch3.out - 7.5;
-	//if (apu->local_state.ch4.dac_enable && apu->local_state.ch4.out < 16)
-	//	channel_4_dac = (float)apu->local_state.ch4.out - 7.5;
+		channel_3_dac = -1 * ((float)apu->local_state.ch3.out - 7.5)/7.5;
+	if (apu->local_state.ch4.dac_enable && apu->local_state.ch4.out < 16)
+		channel_4_dac = -1 * ((float)apu->local_state.ch4.out - 7.5)/7.5;
 
 	//Gets left and right outputs
 	float left = 0;
@@ -129,21 +132,18 @@ APUSample mix_dac_values(APU* apu) {
 	if (mix & 0x40) //Ch3 left
 		left += channel_3_dac;
 
-	//if (mix & 0x08) //Ch4 right
-	//	right += channel_4_dac;
-	//if (mix & 0x80) //Ch4 left
-	//	left += channel_4_dac;
+	if (mix & 0x08) //Ch4 right
+		right += channel_4_dac;
+	if (mix & 0x80) //Ch4 left
+		left += channel_4_dac;
 
-	//Each channel can have an output of between -30 and 30 (4 * +/-7.5)
-	//But the output is in 16-bit values, so scale each to 16 bit
-	right /= 30; //Scale between -1 and 1
-	left /= 30;
-
-	right *= 32766; //Scale between -32766 and 32766
-	left *= 32766;
-
-	right *= (right_vol + 1) / 8.0; //Scale based on volume slider, which is a value from 0-8. This setting never mutes output
+	right *= (right_vol + 1) / 8.0; //Scale based on volume slider, which is a value from 0-7. This setting never mutes output
 	left *= (left_vol + 1) / 8.0;
+
+	//Each channel now gets scaled to a signed 16-bit value
+	//Currently, each channel is between -4 and 4
+	right = right * (32766/4); //Scale between -32766 and 32766
+	left = left * (32766/4);
 
 	sample.left = (int16_t)left;
 	sample.right = (int16_t)right;
@@ -192,8 +192,8 @@ void update_apu(APU* apu, uint64_t emulator_time) {
 		update_ch2(apu, emulator_time);
 	if (apu->local_state.ch3.dac_enable)
 		update_ch3(apu, emulator_time);
-	//if (apu->local_state.ch4.dac_enable && apu->local_state.ch4.enable)
-	//	update_ch4(apu, emulator_time);
+	if (apu->local_state.ch4.dac_enable && apu->local_state.ch4.enable)
+		update_ch4(apu, emulator_time);
 }
 
 //Update Channel DACs
@@ -230,7 +230,7 @@ void update_dacs(APU* apu) {
 		apu->local_state.ch3.dac_enable = 1;
 
 	//Check channel 4
-	if ((apu->bus->memory->NR42_LOCATION) == 0) {
+	if ((apu->bus->memory->NR42_LOCATION & 0xF8) == 0) {
 		apu->local_state.ch4.dac_enable = 0;
 		apu->local_state.ch4.enable = 0;
 		apu->bus->memory->NR52_LOCATION &= ~(0x8); //Clear read only channel on bit
@@ -429,8 +429,29 @@ void enable_channel_3(APU* apu, uint64_t emulator_time) {
 }
 
 //Enables channel 4 and sets initial values.
-//TODO: Implement this
-void enable_channel_4(APU* apu, uint64_t emulator_time) {}
+void enable_channel_4(APU* apu, uint64_t emulator_time) {
+	Ch4State* ch4 = &apu->local_state.ch4; //Chapter 4 state struct for more readability
+	apu->bus->memory->NR52_LOCATION |= 0x8; //Set channel on bit
+
+	//Sets start times
+	ch4->emulator_time_start = emulator_time;
+	
+	//Enable channel 4
+	ch4->enable = 1;
+
+	//If length timer is expired, reset it
+	if (ch4->length_timer >= ch4->length_timer_end)
+		ch4->length_timer = apu->bus->memory->NR41_LOCATION & 0x3F; //Lower 6 bits of NR41 are initial timer value
+
+	//Set volume values
+	ch4->high_vol = (apu->bus->memory->NR42_LOCATION >> 4) & 0xF; //Upper nibble of NR42 is initial value of "high" volume
+	ch4->env_dir = (apu->bus->memory->NR42_LOCATION >> 3) & 0x1; //Bit 3 is direction of envelope. 0 for decrease, 1 for increase
+	ch4->env_timer = 0; //This starts at 0
+	ch4->env_end = apu->bus->memory->NR42_LOCATION & 0x7; //Bottom 3 bits of NR42 is how many times the timer has to tick before volume changes
+	
+	ch4->lfsr = 0;
+	ch4->last_lfsr_clock = emulator_time;
+}
 
 //Updates channel 1 values based on timing
 void update_ch1(APU* apu, uint64_t emulator_time) {
@@ -451,6 +472,8 @@ void update_ch1(APU* apu, uint64_t emulator_time) {
 		//Every 2 ticks, length timer is updated if it is enabled, which is controlled by NR14 bit 6
 		if (div_apu % 2 == 0 && apu->global_state->ch1_length_enable) {
 			++ch1->length_timer;
+
+
 			
 			//If timer expires, turn channel off
 			if (ch1->length_timer > ch1->length_timer_end) {
@@ -657,11 +680,101 @@ void update_ch3(APU* apu, uint64_t emulator_time) {
 		out_val = out_val >> 1; //value of 2 gives 50% volume
 	if (out_vol == 3)
 		out_val = out_val >> 2; //Value of 3 gives 25% volume
-
+	
 	ch3->out = ch3->last_sample; //Output is whatever last sample was. This gets reset when APU is turned on
 	ch3->last_sample = out_val; //Update sample
 }
 
 //Updates channel 4 values based on timing
-//TODO: Implmenet this
-void update_ch4(APU* apu, uint64_t emulator_time) {}
+void update_ch4(APU* apu, uint64_t emulator_time) {
+	//If channel is off, output is 0 (which doesn't necessarily mean muted!)
+	if (apu->local_state.ch4.enable == 0) {
+		apu->local_state.ch4.out = 0;
+		return;
+	}
+
+	//This is kinda a long function, but the timing is so specific its hard to really decompose it more
+	Ch4State* ch4 = &apu->local_state.ch4; //Ch2 struct for readability
+
+	//If DIV-APU was updated, update relevant timers and states
+	//DIV-APU determines envelope ticks, length timers, and CH1 freq sweep
+	if (apu->local_state.apu_div_updated) {
+		uint8_t div_apu = apu->local_state.apu_div; //How many elapsed APU ticks
+
+		//Every 2 ticks, length timer is updated if it is enabled, which is controlled by NR44 bit 6
+		if (div_apu % 2 == 0 && apu->global_state->ch4_length_enable) {
+			++ch4->length_timer;
+
+			//If timer expires, turn channel off
+			if (ch4->length_timer > ch4->length_timer_end) {
+				ch4->enable = 0;
+				apu->bus->memory->NR52_LOCATION &= ~(0x8); //Clears channel enable bit
+			}
+		}
+
+		//Every 8 ticks, volume envelope is updated if it is enabled. It is enabled if "sweep pace" is 0
+		if (div_apu % 8 == 0 && ch4->env_end != 0) {
+			++ch4->env_timer;
+
+			if (ch4->env_timer >= ch4->env_end) {
+				if (ch4->env_dir == 0 && ch4->high_vol != 0)
+					--ch4->high_vol; //Decrease high volume if it is not 0
+				if (ch4->env_dir == 1 && ch4->high_vol != 15)
+					++ch4->high_vol; //Increase high volume if it is not 15
+
+				ch4->env_timer = 0; //Reset envelope timer
+			}
+		}
+	}
+
+	//Calculate how many dots need to pass before next LSFR clock
+	//This gets clocked every 16*x dots where x is clock_div<<shift. If clock_div = 0, its treated as 0.5 instead
+	uint32_t clock_div = apu->bus->memory->NR43_LOCATION & 0x07; //Bottom 3 bits are clock div
+	uint32_t clock_shift = (apu->bus->memory->NR43_LOCATION >> 4) & 0xF; //Upper nibble is shift frequency
+	uint32_t dots_to_wait;
+
+	if (clock_div != 0)
+		dots_to_wait = 16 * (clock_div << clock_shift);
+	else
+		dots_to_wait = 16 * ((1 << clock_shift)/2);
+
+	//If that amount has passed, then clock LSFR
+	if (emulator_time - ch4->last_lfsr_clock >= dots_to_wait) {
+		ch4->last_lfsr_clock = emulator_time;
+		clock_lsfr(apu);
+	}
+
+	//If bit 0 of LSFR is 1, output current high_vol, else output 0
+	if (ch4->lfsr & 0x1)
+		ch4->out = ch4->high_vol;
+	else
+		ch4->out = 0;
+}
+
+void clock_lsfr(APU* apu) {
+	uint16_t lfsr = apu->local_state.ch4.lfsr;
+	
+	//In 15 bit mode, this gets written to bit 15.
+	//In 7 bit mode, it gets written to both bit 15 and 7
+	uint8_t mode = (apu->bus->memory->NR43_LOCATION >> 0x3) & 0x1; //Bit 3 of NR43 controls this
+
+	//If LSFR bits 0 and 1 are equal, write a 1 to bit 7/15, otherwise write 0
+	if ((lfsr & 0x1) == ((lfsr & 0x2) >> 1)) {
+		if (mode == 0)
+			lfsr |= 0x8000; //Write to bit 15
+		else
+			lfsr |= 0x8080; //Write to bit 15 and bit 7
+	}
+	else {
+		if (mode == 0)
+			lfsr &= ~(0x8000); //Write to bit 15
+		else
+			lfsr &= ~(0x8080); //Write to bit 15 and bit 7
+	}
+
+	//Finally, LFSR gets shifted right
+	lfsr = lfsr >> 1;
+
+	//Write back LFSR
+	apu->local_state.ch4.lfsr = lfsr;
+}

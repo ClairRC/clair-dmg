@@ -1,13 +1,25 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "memory.h"
 #include "hardware_def.h"
 #include "logging.h"
 #include "hardware_registers.h"
 #include "mbc_handler.h"
 
+//Checks which system emulator is compiled on
+//This is only to create a new directory for save data if it doesnt exist
+#if defined(_WIN32)
+    #include <direct.h>
+    #define MAKE_SAVE_DIR(SAVE_DIR) _mkdir(SAVE_DIR)
+#else
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #define MAKE_SAVE_DIR(SAVE_DIR) mkdir(SAVE_DIR, 0777)
+#endif
+
 //TODO: Finish this
-Memory* memory_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file) {
+Memory* memory_init(FILE* rom_file, FILE* boot_rom_file) {
     if (rom_file == NULL) {
         printError("Error opening ROM");
         return NULL;
@@ -31,8 +43,9 @@ Memory* memory_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file) {
 
     //Setup Memory Arrays
     //Fixed memory locations
+
     mem->vram_0 = (uint8_t*)calloc(0x2000, 1); //8kb vram bank. CGB has a second vram bank.
-    mem->wram_x = (uint8_t*)calloc(0x2000, 1); //TODO: DMG has 2 fixed banks, CBG has 1 fixed and 7 switchable
+    mem->wram_x = (uint8_t*)calloc(0x2000, 1); //DMG has 2 fixed banks, CBG has 1 fixed and 7 switchable
     mem->oam = (uint8_t*)calloc(0xA0, 1); //Object Attribute Memory
     mem->io = (uint8_t*)calloc(0x80, 1); //IO registers
     mem->hram = (uint8_t*)calloc(0x80, 1); //hram. Final index is the interrupt enable register.
@@ -49,9 +62,15 @@ Memory* memory_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file) {
 
     //Load ROM data
     load_rom_data(mem, rom_file);
-    if (save_data != NULL && mbc_chip->has_battery) { load_save_data(mem, save_data); } //Load save data if save data exists and game supports it
+
+    //Gets game name
+    get_game_name(mem);
+
+    //Loads save data if it exists
+    if (mbc_chip->has_battery) { load_save_data(mem); } //Load save data if save data exists and game supports it
 
     //Check for boot rom
+    //TODO: Boot ROM is currently very buggy and I'm not sure why?
     
     //If boot rom is NULL, leave it unmapped
     if (boot_rom_file == NULL) {
@@ -59,11 +78,17 @@ Memory* memory_init(FILE* rom_file, FILE* save_data, FILE* boot_rom_file) {
         mem->boot_rom = NULL;
         mem->local_state.boot_rom_mapped = 0;
     }
+    else {
+        //Load boot ROM. If load fails, free the space it was allocating and keep it disabled
+        if (load_boot_rom_data(mem, boot_rom_file)) {
+            if (mem->boot_rom != NULL) 
+                free(mem->boot_rom);
 
-    //Current wram bank
-    mem->local_state.current_wram_bank = 1; //Always 1 on DMG. Not related to MBC
-   
-    //TODO: Refactor input stuff
+            mem->boot_rom_size = 0;
+            mem->local_state.boot_rom_mapped = 0;
+        }
+    }
+
     //Start with no buttons pressed
     mem->local_state.button_state = 0x0F;
     mem->local_state.dpad_state = 0x0F;
@@ -108,7 +133,6 @@ MBC_Data* get_mbc_data(FILE* rom_file) {
     uint8_t ram_byte;
 
     //Get MBC, ROM, and RAM bytes and return if it can't be found
-
     //MBC Type byte
     fseek(rom_file, 0x147, SEEK_SET);
     if (fread(&mbc_type, 1, 1, rom_file) == 0) {
@@ -158,7 +182,6 @@ uint8_t load_rom_data(Memory* mem, FILE* rom_file) {
 
     if (!fread(mem->rom_x, 1, num_bytes, rom_file)) {
         printError("ROM file too small!");
-        fclose(rom_file);
         return 1;
     }
 
@@ -167,21 +190,94 @@ uint8_t load_rom_data(Memory* mem, FILE* rom_file) {
 
 //Load save data
 //Return 0 for success, 1 for failure
-uint8_t load_save_data(Memory* mem, FILE* save_data) {
+uint8_t load_save_data(Memory* mem) {
+    //Load save file (if it exists)
+    char file_path[100] = "saves/";
+    strcat(file_path, mem->game_name);
+    strcat(file_path, ".sav");
+    FILE* save_data = fopen(file_path, "rb");
+
     if (save_data != NULL && mem->mbc_chip->has_battery && mem->exram_x != NULL) {
         //Get buffer size
         fseek(save_data, 0, SEEK_END);
         long size = ftell(save_data);
         rewind(save_data);
 
-        if (!fread(mem->exram_x, 1, size, save_data))
+        if (!fread(mem->exram_x, 1, size, save_data)) {
+            fclose(save_data);
             return 1;
+        }
 
-        return 0;
+        fclose(save_data);
     }
-
     else
         return 1;
+}
+
+//Saves save data
+void save_save_data(Memory* mem) {
+    //Get file path
+    char file_path[100] = "saves/";
+    strcat(file_path, mem->game_name);
+    strcat(file_path, ".sav");
+
+    FILE* save = fopen(file_path, "wb");
+
+    //If save is NULL, then save directory doesn't exist yet, so create it here
+    if (save == NULL) {
+        MAKE_SAVE_DIR("saves");
+        save = fopen(file_path, "wb"); //Try to open file again. If that fails, no save data :(
+    }
+
+    if (save != NULL && mem->mbc_chip->has_battery && mem->exram_x != NULL) {
+        fwrite((void*)mem->exram_x, 1, mem->mbc_chip->num_exram_banks * 0x2000, save);
+
+        fclose(save);
+    }
+}
+
+//Load boot ROM
+//Return 0 for success, 1 for failure
+uint8_t load_boot_rom_data(Memory* mem, FILE* boot_rom_file) {
+    if (boot_rom_file == NULL)
+        return 1;
+
+    //Load boot ROM...
+    fseek(boot_rom_file, 0, SEEK_END);
+    long num_bytes = ftell(boot_rom_file);
+    rewind(boot_rom_file);
+
+    //Create buffer for boot ROM
+    mem->boot_rom = (uint8_t*)malloc(num_bytes);
+
+    if (!fread(mem->boot_rom, 1, num_bytes, boot_rom_file)) {
+        printError("ROM file too small!");
+        return 1;
+    }
+
+    //Set boot rom flags
+    mem->boot_rom_size = num_bytes;
+    mem->local_state.boot_rom_mapped = 1;
+
+    return 0;
+}
+
+//Gets and stores game name
+void get_game_name(Memory* mem) {
+    //Game name is stored in bytes 0x134-0x143 in the cartridge header
+    
+    //If there is no ROM loaded, then no game will run anyway
+    if (mem->rom_x == NULL)
+        return;
+
+    //Allocate space. Game name will only be max 16 characters
+    //It is NULL terminated
+    mem->game_name = (char*)calloc(16, 1);
+
+    int mem_index = 0x134;
+    int name_index = 0;
+    while (mem_index <= 0x143 && mem->rom_x[mem_index] != '\0')
+        mem->game_name[name_index++] = mem->rom_x[mem_index++];
 }
 
 //Returns memory information for accessed address
@@ -207,12 +303,12 @@ MemoryValue get_memory_value(Memory* mem, uint16_t address) {
 
     else if (address < 0xE000) {
         range = RANGE_WRAM;
-        ptr = &mem->wram_x[address - 0xC000]; //WRAM area
+        ptr = get_wram_ptr(mem, address); //WRAM area
     }
 
     else if (address < 0xFE00) {
         range = RANGE_WRAM;
-        ptr = &mem->wram_x[(address - 0xC000) - 0x2000]; //Echo RAM mirrors WRAM, so take the WRAM value and just offset it more
+        ptr = get_wram_ptr(mem, address - 0x2000); //Echo RAM mirrors WRAM, so take the WRAM value and just offset it more
     }
 
     else if (address < 0xFEA0) {
@@ -272,13 +368,10 @@ uint8_t* get_rom_ptr(Memory* mem, uint16_t address) {
 
 //Get memory pointer from VRAM area
 uint8_t* get_vram_ptr(Memory* mem, uint16_t address) {
-    //A function for this isn't necessary on just DMG, but
-    //CGB adds an additional bank, so I'm keeping this for that reason
-
-    //Get index (always bank 0 on DMG)
+    //Get index
     uint32_t index = address - 0x8000;
 
-    return &mem->vram_0[index];
+    return &mem->vram_0[index]; //Return VRAM bank 0
 }
 
 //Get memory pointer from EXRAM area
@@ -291,6 +384,12 @@ uint8_t* get_exram_ptr(Memory* mem, uint16_t address) {
         index = (address - 0xA000) % 0x200; //MBC2 only has 0x200 bytes for some reason
 
     return &mem->exram_x[index];
+}
+
+//Get memory pointer from WRAM area
+uint8_t* get_wram_ptr(Memory* mem, uint16_t address) {
+    //If we are in DMG mode, there is only 2 WRAM banks so it is just a simple offset
+    return &mem->wram_x[address - 0xC000];
 }
 
 //Disables boot rom and frees space if bootrom exists
