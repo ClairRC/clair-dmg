@@ -31,3 +31,9 @@ X -> B\
 Enter -> Start\
 Right Shift -> Select\
 Arrow Keys -> D-Pad
+
+### TODO
+* Add support for MBC3
+* Fix audio issues
+* Add GameBoy Color Support
+* Add more customization for controls/opening ROMs
