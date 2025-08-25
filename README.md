@@ -31,7 +31,7 @@ Z -> A\
 X -> B\
 Enter -> Start\
 Right Shift -> Select\
-Arrow Keys -> D-Pad
+Arrow Keys -> D-Pad\
 Space (Hold) -> Speed-up (x4 speed)
 
 ### TODO
