@@ -23,7 +23,7 @@ cmake path/to/CMakeLists.txt
 **Note**: This project uses find_package(SDL2) in CMake. Make sure SDL2 is installed and provides a valid configuration file. If you built SDL2 with CMake, this file should already be available.
 
 ### Usage
-To run a game, play a ROM file in the same directory as the executable and name it "game.gb". If you also would like to include a boot ROM, then be sure to name that "boot.bin", although the boot ROM handling is currently
+To run a game, place a ROM file in the same directory as the executable and name it "game.gb". If you also would like to include a boot ROM, then be sure to name that "boot.bin", although the boot ROM handling is currently
 buggy.
 
 #### Controls
